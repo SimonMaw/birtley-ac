@@ -346,7 +346,7 @@ function editSession(id){var s=sessions.find(x=>x.id===id);if(!s)return;editSess
 function delSession(id){if(!confirm("Delete this session?"))return;sessions=sessions.filter(s=>s.id!==id);if(curSessId===id){curSessId=null;document.getElementById("pl-empty").style.display="block";document.getElementById("pl-content").style.display="none"}renderSessions();deleteItem("sessions",id)}
 function getPB(ath,event){var entries=(ath.performance||{})[event]||[];if(!entries.length)return null;if(isTrack(event)&&!isBleep(event))return entries.reduce((b,e)=>parseFloat(e.result)<parseFloat(b.result)?e:b);return entries.reduce((b,e)=>parseFloat(e.result)>parseFloat(b.result)?e:b)}
 function getSchoolYear(dob){if(!dob)return"";var d=new Date(dob+"T00:00:00");var today=new Date();var acadYear=today.getMonth()>=8?today.getFullYear():today.getFullYear()-1;var birthYear=d.getFullYear();var birthMonth=d.getMonth();var entryYear=birthYear+(birthMonth>=8?5:4);var yr=acadYear-entryYear+1;if(yr<=0)return"Reception";if(yr>13)return"";return"Yr "+yr;}
-function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();var a=new Date().getFullYear()-y;if(a<=12)return'U13';if(a<=14)return'U15';if(a<=16)return'U17';if(a<=19)return'U20';if(a<=22)return'U23';return'Senior';}function() {
+function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();var a=new Date().getFullYear()-y;if(a<=12)return'U13';if(a<=14)return'U15';if(a<=16)return'U17';if(a<=19)return'U20';if(a<=22)return'U23';return'Senior';}function renderSquad() {
   stats();
   var el = document.getElementById("ath-list");
   var q = (document.getElementById("ath-search").value || "").toLowerCase();
