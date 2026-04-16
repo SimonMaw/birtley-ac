@@ -234,7 +234,7 @@ Also save to activity library</label></div>
 </div></div>
 
 <div id="mLib" class="overlay"><div class="modal">
-  <div class="modal-header"><div class="modal-title">Add to library</div><button class="close-btn" onclick="closeMo('mLib')">&times;</button></div>
+  <div class="modal-header"><div class="modal-title" id="mLibT">Add to library</div><button class="close-btn" onclick="closeMo('mLib')">&times;</button></div>
   <div class="fr"><label>Activity name</label><input id="l-name" placeholder="e.g. Baton relay practice..."/></div>
   <div class="g2"><div class="fr"><label>Category</label><select id="l-cat"><option value="warmup">Warm-up</option><option value="track">Track &amp; sprints</option><option value="field">Field events</option><option value="endurance">Endurance</option><option value="multi">Multi-events</option><option value="cooldown">Cool-down</option></select></div><div class="fr"><label>Duration (mins)</label><input type="number" id="l-dur" value="15" min="5" step="5"/></div></div>
   <div class="fr"><label>Description</label><textarea id="l-desc" placeholder="Coaching notes, reps, progressions..."></textarea></div>
@@ -279,7 +279,7 @@ async function dbDelete(table, id){
 }
 
 var sessions=[],athletes=[],competitions=[],library=[];
-var curSessId=null,editSessId=null,editAthId=null,editCompId=null,perfAthId=null,grpFilter="all",showArchived=false;
+var curSessId=null,editSessId=null,editAthId=null,editCompId=null,editLibId=null,perfAthId=null,grpFilter="all",showArchived=false;
 var TRACK=["60m","100m","200m","400m","800m","1500m","Bleep test"];
 var FIELD=["Long jump","High jump","Shot put","Javelin","Triple jump","Discus"];
 var ALL_EVENTS=TRACK.concat(FIELD);
@@ -425,8 +425,9 @@ function delAthlete(id){if(!confirm("Remove this athlete?"))return;athletes=athl
 function savePerf(){var a=athletes.find(x=>x.id===perfAthId);if(!a)return;var ev=document.getElementById("p-event").value;var result=document.getElementById("p-result").value.trim();if(!result){alert("Please enter a result.");return}a.performance=a.performance||{};a.performance[ev]=a.performance[ev]||[];a.performance[ev].push({id:uid(),result,date:document.getElementById("p-date").value,notes:document.getElementById("p-notes").value});document.getElementById("p-result").value="";document.getElementById("p-notes").value="";renderPerfBody(a);renderSquad();saveItem("athletes",a)}
 function openAddComp(){editCompId=null;["c-name","c-venue","c-events","c-notes"].forEach(i=>document.getElementById(i).value="");document.getElementById("c-date").value="";document.getElementById("c-grp").value="u11";document.getElementById("mCompT").textContent="Add competition";openMo("mComp")}
 function saveComp(){var name=document.getElementById("c-name").value.trim();if(!name){alert("Please enter a competition name.");return}var obj={id:editCompId||uid(),name,date:document.getElementById("c-date").value,group:document.getElementById("c-grp").value,venue:document.getElementById("c-venue").value,events:document.getElementById("c-events").value,notes:document.getElementById("c-notes").value};if(editCompId){var i=competitions.findIndex(x=>x.id===editCompId);if(i>=0)competitions[i]=obj}else competitions.push(obj);closeMo("mComp");renderCompetitions();saveItem("competitions",obj)}
-function openAddLib(){["l-name","l-desc","l-equip"].forEach(i=>document.getElementById(i).value="");document.getElementById("l-cat").value="warmup";document.getElementById("l-dur").value="15";openMo("mLib")}
-function saveLib(){var name=document.getElementById("l-name").value.trim();if(!name){alert("Please enter an activity name.");return}library.push({id:uid(),name,category:document.getElementById("l-cat").value,duration:document.getElementById("l-dur").value,description:document.getElementById("l-desc").value,equipment:document.getElementById("l-equip").value});var newLib=library[library.length-1];closeMo("mLib");renderLibrary();saveItem("library",newLib)}
+function openAddLib(){editLibId=null;["l-name","l-desc","l-equip"].forEach(i=>document.getElementById(i).value="");document.getElementById("l-cat").value="warmup";document.getElementById("l-dur").value="15";document.getElementById("mLibT").textContent="Add to library";openMo("mLib")}
+function editLib(id){var a=library.find(x=>x.id===id);if(!a)return;editLibId=id;document.getElementById("l-name").value=a.name||"";document.getElementById("l-cat").value=a.category||"warmup";document.getElementById("l-dur").value=a.duration||15;document.getElementById("l-desc").value=a.description||"";document.getElementById("l-equip").value=a.equipment||"";document.getElementById("mLibT").textContent="Edit activity";openMo("mLib");}
+function saveLib(){var name=document.getElementById("l-name").value.trim();if(!name){alert("Please enter an activity name.");return}var libObj={id:editLibId||uid(),name,category:document.getElementById("l-cat").value,duration:document.getElementById("l-dur").value,description:document.getElementById("l-desc").value,equipment:document.getElementById("l-equip").value};if(editLibId){var li=library.findIndex(x=>x.id===editLibId);if(li>=0)library[li]=libObj;}else{library.push(libObj);}closeMo("mLib");renderLibrary();saveItem("library",libObj)}
 function openLibraryPicker(){
   var el=document.getElementById("lib-pick-body");
   if(!library.length){el.innerHTML='<div class="empty-state"><p style="font-size:2rem;margin-bottom:10px">&#128218;</p><p>Your activity library is empty. Add activities to the library first, then you can pick them here.</p></div>';openMo("mLibPick");return}
