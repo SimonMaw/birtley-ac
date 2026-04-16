@@ -347,7 +347,63 @@ function archiveSession(id){var s=sessions.find(x=>x.id===id);if(!s)return;s.arc
 function editSession(id){var s=sessions.find(x=>x.id===id);if(!s)return;editSessId=id;document.getElementById("s-name").value=s.name||"";document.getElementById("s-date").value=s.date||"";document.getElementById("s-time").value=s.time||"18:00";document.getElementById("s-dur").value=s.duration||60;document.getElementById("s-grp").value=s.group||"u11";document.getElementById("s-loc").value=s.location||"";document.getElementById("s-notes").value=s.notes||"";document.getElementById("mSessT").textContent="Edit session";openMo("mSess")}
 function delSession(id){if(!confirm("Delete this session?"))return;sessions=sessions.filter(s=>s.id!==id);if(curSessId===id){curSessId=null;document.getElementById("pl-empty").style.display="block";document.getElementById("pl-content").style.display="none"}renderSessions();deleteItem("sessions",id)}
 function getPB(ath,event){var entries=(ath.performance||{})[event]||[];if(!entries.length)return null;if(isTrack(event)&&!isBleep(event))return entries.reduce((b,e)=>parseFloat(e.result)<parseFloat(b.result)?e:b);return entries.reduce((b,e)=>parseFloat(e.result)>parseFloat(b.result)?e:b)}
-function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();var a=new Date().getFullYear()-y;if(a<=12)return'U13';if(a<=14)return'U15';if(a<=16)return'U17';if(a<=19)return'U20';if(a<=22)return'U23';return'Senior';}function renderSquad(){stats();var el=document.getElementById("ath-list");var q=(document.getElementById("ath-search").value||"").toLowerCase();var filtered=athletes.filter(a=>{if(grpFilter!=="all"&&a.group!==grpFilter)return false;if(q&&!(a.firstName+" "+a.lastName).toLowerCase().includes(q))return false;return true});if(!filtered.length){el.innerHTML='<div class="empty-state"><p style="font-size:2rem;margin-bottom:10px">&#128099;</p><p>'+(athletes.length?"No athletes match your search.":"No athletes yet. Add your squad above.")+"</p></div>";return}var sorted=[...filtered].sort((a,b)=>(a.lastName||"").localeCompare(b.lastName||""));var html="";for(var a of sorted){var col=athCol(a.id);var ag=age(a.dob);var sc=sessions.filter(s=>s.group===a.group||s.group==="both").length;var att=sessions.filter(s=>(s.group===a.group||s.group==="both")&&s.attendance&&s.attendance[a.id]==="present").length;var perf=a.performance||{};var pbs=ALL_EVENTS.filter(e=>(perf[e]||[]).length>0).map(e=>{var pb=getPB(a,e);return pb?'<span class="badge bpb" style="font-size:11px">'+e+": "+pb.result+unitFor(e)+"</span>"+abilityBadge(a.ability):""}).filter(Boolean).join(" ");html+='<div class="card"><div style="display:flex;align-items:flex-start;gap:12px"><div class="avatar" style="background:'+col.bg+";color:"+col.tx+'">'+ initials(a.firstName,a.lastName)+'</div><div style="flex:1"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px"><div><div class="card-title">'+esc(a.firstName+" "+a.lastName)+'</div><div class="card-meta">'+grpL(a.group)+(ag?" &middot; Age "+ag:"")+(a.dob?" &middot; DOB: "+fmt(a.dob):"")+(a.dob?" &middot; "+getUKAAgeGroup(a.dob):"")+(a.events?" &middot; "+esc(a.events):"")+'</div><div class="card-meta">'+sc+" sessions &middot; "+att+' attended</div><div style="margin-top:6px">'+( a.photoConsent?'<span style="background:var(--yellow);color:var(--blue-dark);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;border:1px solid var(--yellow-dark)">&#10003; Photo consent</span>':'<span style="background:var(--red-bg);color:var(--red-tx);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;">&#10007; No photo consent</span>')+'</div>'+(a.ability&&a.ability!=="none"?'<div style="margin-top:4px">'+abilityBadge(a.ability)+'</div>':'')+'<div style="margin-top:4px"><button class="btn sm" style="font-size:11px" onclick="cycleAbility(\''+a.id+'\')">'+(!a.ability||a.ability==="none"?"Set ability":a.ability==="phoenix"?"&#128293; Phoenix":"&#129331; Flames")+'</button></div>'+(pbs?'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">'+pbs+"</div>":"")+(a.notes?'<div style="font-size:13px;color:var(--text2);margin-top:6px">'+esc(a.notes)+"</div>":"")+"</div></div></div>"}el.innerHTML=html}
+function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();var a=new Date().getFullYear()-y;if(a<=12)return'U13';if(a<=14)return'U15';if(a<=16)return'U17';if(a<=19)return'U20';if(a<=22)return'U23';return'Senior';}function() {
+  stats();
+  var el = document.getElementById("ath-list");
+  var q = (document.getElementById("ath-search").value || "").toLowerCase();
+  var filtered = athletes.filter(a => {
+    if (grpFilter !== "all" && a.group !== grpFilter) return false;
+    if (q && !(a.firstName + " " + a.lastName).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty-state"><p style="font-size:2rem;margin-bottom:10px">&#128099;</p><p>' + (athletes.length ? "No athletes match your search." : "No athletes yet. Add your squad above.") + "</p></div>";
+    return;
+  }
+  var sorted = [...filtered].sort((a, b) => (a.lastName || "").localeCompare(b.lastName || ""));
+  var html = "";
+  for (var a of sorted) {
+    var col = athCol(a.id);
+    var ag = age(a.dob);
+    var sc = sessions.filter(s => s.group === a.group || s.group === "both").length;
+    var att = sessions.filter(s => (s.group === a.group || s.group === "both") && s.attendance && s.attendance[a.id] === "present").length;
+    var perf = a.performance || {};
+    var pbs = ALL_EVENTS.filter(e => (perf[e] || []).length > 0).map(e => {
+      var pb = getPB(a, e);
+      return pb ? '<span class="badge bpb" style="font-size:11px">' + e + ": " + pb.result + unitFor(e) + "</span>" : "";
+    }).filter(Boolean).join(" ");
+
+    html += '<div class="card">';
+    html += '<div style="display:flex;align-items:flex-start;gap:12px">';
+    html += '<div class="avatar" style="background:' + col.bg + ';color:' + col.tx + '">' + initials(a.firstName, a.lastName) + '</div>';
+    html += '<div style="flex:1">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">';
+    html += '<div>';
+    html += '<div class="card-title">' + esc(a.firstName + " " + a.lastName) + '</div>';
+    html += '<div class="card-meta">' + grpL(a.group) + (ag ? " &middot; Age " + ag : "") + (a.dob ? " &middot; DOB: " + fmt(a.dob) : "") + (a.dob ? " &middot; " + getUKAAgeGroup(a.dob) : "") + (a.events ? " &middot; " + esc(a.events) : "") + '</div>';
+    html += '<div class="card-meta">' + sc + " sessions &middot; " + att + ' attended</div>';
+    html += '<div style="margin-top:6px">';
+    html += a.photoConsent ? '<span style="background:var(--yellow);color:var(--blue-dark);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;border:1px solid var(--yellow-dark)">&#10003; Photo consent</span>' : '<span style="background:var(--red-bg);color:var(--red-tx);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;">&#10007; No photo consent</span>';
+    html += '</div>';
+    if (a.ability && a.ability !== "none") {
+      html += '<div style="margin-top:4px">' + abilityBadge(a.ability) + '</div>';
+    }
+    html += '<div style="margin-top:4px"><button class="btn sm" style="font-size:11px" onclick="cycleAbility(\'' + a.id + '\')">' + (!a.ability || a.ability === "none" ? "Set ability" : a.ability === "phoenix" ? "&#128293; Phoenix" : "&#129331; Flames") + '</button></div>';
+    html += '</div>'; // closes left column div
+    html += '<div class="row-actions">';
+    html += '<button class="btn sm suc" onclick="openPerf(\'' + a.id + '\')">Performance log</button>';
+    html += '<button class="btn sm" onclick="editAthlete(\'' + a.id + '\')">Edit</button>';
+    html += '<button class="btn sm dan" onclick="delAthlete(\'' + a.id + '\')">Remove</button>';
+    html += '</div>';
+    html += '</div>'; // closes space-between div
+    if (pbs) html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">' + pbs + '</div>';
+    if (a.notes) html += '<div style="font-size:13px;color:var(--text2);margin-top:6px">' + esc(a.notes) + '</div>';
+    html += '</div>'; // closes flex:1
+    html += '</div>'; // closes flex row
+    html += '</div>'; // closes .card
+  }
+  el.innerHTML = html;
+}
 function openPerf(id){perfAthId=id;var a=athletes.find(x=>x.id===id);if(!a)return;document.getElementById("mPerfT").textContent=a.firstName+" "+a.lastName+" ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ performance log";var sel=document.getElementById("p-event");sel.innerHTML=ALL_EVENTS.map(e=>"<option value='"+e+"'>"+e+"</option>").join("");document.getElementById("p-date").value=new Date().toISOString().split("T")[0];document.getElementById("p-result").value="";document.getElementById("p-notes").value="";updatePerfLabel();renderPerfBody(a);openMo("mPerf")}
 function updatePerfLabel(){var ev=document.getElementById("p-event").value;document.getElementById("p-result-label").textContent=labelFor(ev);document.getElementById("p-result").placeholder=placeholderFor(ev)}
 function renderPerfBody(a){var perf=a.performance||{};var secs=[{title:"Track events",events:TRACK},{title:"Field events",events:FIELD}];var html="";for(var sec of secs){var hasAny=sec.events.some(e=>(perf[e]||[]).length>0);if(!hasAny)continue;html+='<div class="perf-section"><div class="perf-section-title">'+sec.title+"</div>";for(var ev of sec.events){var entries=perf[ev]||[];if(!entries.length)continue;var pb=getPB(a,ev);html+='<div class="perf-event-row"><div class="perf-event-name">'+ev+'</div><div class="perf-entries">';var sorted=[...entries].sort((x,y)=>(x.date||"").localeCompare(y.date||""));for(var en of sorted){var isPB=pb&&en.id===pb.id;html+='<div class="perf-entry'+(isPB?" pb":"")+'"><span>'+en.result+unitFor(ev)+"</span><span class='perf-date'>"+fmt(en.date)+"</span>"+(isPB?'<span style="font-size:10px;font-weight:700">PB</span>':"")+( en.notes?'<span class="perf-date" title="'+esc(en.notes)+'">&#9432;</span>':"")+'<button class="perf-del" onclick="delPerfEntry(\''+a.id+"\',\'"+ev+"\',\'"+en.id+'\')">&#10005;</button></div>'}html+="</div></div>"}html+="</div>"}if(!html)html='<p style="font-size:13px;color:var(--text2);margin-bottom:1rem">No results logged yet. Add the first one below.</p>';document.getElementById("perf-body").innerHTML=html}
