@@ -378,7 +378,7 @@ function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();
     html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">';
     html += '<div>';
     html += '<div class="card-title">' + esc(a.firstName + " " + a.lastName) + '</div>';
-    html += '<div class="card-meta">' + grpL(a.group) + (ag ? " &middot; Age " + ag : "") + (a.dob ? " &middot; DOB: " + fmt(a.dob) : "") + (a.dob ? " &middot; " + getUKAAgeGroup(a.dob) : "") + (a.events ? " &middot; " + esc(a.events) : "") + '</div>';
+    html += '<div class="card-meta">' + grpL(a.group) + (ag ? " &middot; Age " + ag : "") + (a.dob ? " &middot; DOB: " + fmt(a.dob) : "") + (a.dob ? " &middot; " + getUKAAgeGroup(a.dob) : "") + (a.dob && getSchoolYear(a.dob) ? " · " + getSchoolYear(a.dob) : "") + (a.events ? " &middot; " + esc(a.events) : "") + '</div>';
     html += '<div class="card-meta">' + sc + " sessions &middot; " + att + ' attended</div>';
     html += '<div style="margin-top:6px">';
     html += a.photoConsent ? '<span style="background:var(--yellow);color:var(--blue-dark);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;border:1px solid var(--yellow-dark)">&#10003; Photo consent</span>' : '<span style="background:var(--red-bg);color:var(--red-tx);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;">&#10007; No photo consent</span>';
