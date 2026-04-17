@@ -197,8 +197,8 @@ textarea{resize:vertical;min-height:72px}
   <div class="g2"><div class="fr"><label>Category</label><select id="a-cat"><option value="warmup">Warm-up</option><option value="track">Track &amp; sprints</option><option value="field">Field events</option><option value="endurance">Endurance</option><option value="multi">Multi-events</option><option value="cooldown">Cool-down</option></select></div><div class="fr"><label>Duration (mins)</label><input type="number" id="a-dur" value="15" min="5" step="5"/></div></div>
   <div class="fr"><label>Description / instructions</label><textarea id="a-desc" placeholder="Reps, sets, coaching points..."></textarea></div>
   <div class="fr"><label>Equipment needed</label><input id="a-equip" placeholder="Cones, hurdles, stopwatch..."/></div>
-  <div class="cb-row"><input type="checkbox" id="a-savelib"/><label for="a-savelib">Ability group<select id="a-ability"><option value="both">Both</option><option value="phoenix">Phoenix</option><option value="flames">Flames</option></select>
-Also save to activity library</label></div>
+  <div class="form-row"><label>Ability group<select id="a-ability"><option value="both">Both</option><option value="phoenix">Phoenix</option><option value="flames">Flames</option></select></label></div>
+  <div class="cb-row"><input type="checkbox" id="a-savelib"/><label for="a-savelib">Also save to activity library</label></div>
   <div class="modal-footer"><button class="btn" onclick="closeMo('mAct')">Cancel</button><button class="btn pri" onclick="saveAct()">Add activity</button></div>
 </div></div>
 
@@ -207,7 +207,8 @@ Also save to activity library</label></div>
   <div class="g2"><div class="fr"><label>First name</label><input id="ah-fn" placeholder="First name"/></div><div class="fr"><label>Last name</label><input id="ah-ln" placeholder="Last name"/></div></div>
   <div class="g2"><div class="fr"><label>Age group</label><select id="ah-grp"><option value="u11">Under 11s</option><option value="u15">Under 15s</option></select></div><div class="fr"><label>Date of birth</label><input type="date" id="ah-dob"/></div></div>
   <div class="fr"><label>Events / specialisms</label><input id="ah-events" placeholder="e.g. 100m, Long jump..."/></div>
-  <div class="fr"><div class="form-row"><label>Ability group<select id="ah-ability"><option value="">Not set</option><option value="phoenix">Phoenix</option><option value="flames">Flames</option></select></label></div><label class="cb-row"><input type="checkbox" id="ah-consent"/><span>Photo consent received &#10003; images can be shared online</span></label></div>
+  <div class="fr"><div class="form-row"><label>Notes<textarea id="ah-notes" placeholder="Any relevant notes..."></textarea></label></div>
+<div class="form-row"><label>Ability group<select id="ah-ability"><option value="">Not set</option><option value="phoenix">Phoenix</option><option value="flames">Flames</option></select></label></div><label class="cb-row"><input type="checkbox" id="ah-consent"/><span>Photo consent received &#10003; images can be shared online</span></label></div>
   <div class="modal-footer"><button class="btn" onclick="closeMo('mAth')">Cancel</button><button class="btn pri" onclick="saveAth()">Save athlete</button></div>
 </div></div>
 
