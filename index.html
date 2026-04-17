@@ -280,8 +280,8 @@ async function dbDelete(table, id){
 
 var sessions=[],athletes=[],competitions=[],library=[];
 var curSessId=null,editSessId=null,editAthId=null,editCompId=null,editLibId=null,perfAthId=null,grpFilter="all",showArchived=false;
-var TRACK=["60m","100m","200m","400m","800m","1500m","Bleep test"];
-var FIELD=["Long jump","High jump","Shot put","Javelin","Triple jump","Discus"];
+var TRACK=["60m","75m","100m","200m","400m","600m","800m","1500m","Bleep test"];
+var FIELD=["Standing long jump","Long jump","High jump","Shot put","Javelin","Triple jump","Discus"];
 var ALL_EVENTS=TRACK.concat(FIELD);
 function isBleep(e){return e==="Bleep test"}
 function isTrack(e){return TRACK.indexOf(e)>=0}
@@ -549,7 +549,7 @@ function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();
   }
   el.innerHTML = html;
 }
-function openPerf(id){perfAthId=id;var a=athletes.find(x=>x.id===id);if(!a)return;document.getElementById("mPerfT").textContent=a.firstName+" "+a.lastName+" ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ performance log";var sel=document.getElementById("p-event");sel.innerHTML=ALL_EVENTS.map(e=>"<option value='"+e+"'>"+e+"</option>").join("");document.getElementById("p-date").value=new Date().toISOString().split("T")[0];document.getElementById("p-result").value="";document.getElementById("p-notes").value="";updatePerfLabel();renderPerfBody(a);openMo("mPerf")}
+function openPerf(id){perfAthId=id;var a=athletes.find(x=>x.id===id);if(!a)return;document.getElementById("mPerfT").textContent=a.firstName+" "+a.lastName+" · performance log";var sel=document.getElementById("p-event");sel.innerHTML=ALL_EVENTS.map(e=>"<option value='"+e+"'>"+e+"</option>").join("");document.getElementById("p-date").value=new Date().toISOString().split("T")[0];document.getElementById("p-result").value="";document.getElementById("p-notes").value="";updatePerfLabel();renderPerfBody(a);openMo("mPerf")}
 function updatePerfLabel(){var ev=document.getElementById("p-event").value;document.getElementById("p-result-label").textContent=labelFor(ev);document.getElementById("p-result").placeholder=placeholderFor(ev)}
 function renderPerfBody(a){var perf=a.performance||{};var secs=[{title:"Track events",events:TRACK},{title:"Field events",events:FIELD}];var html="";for(var sec of secs){var hasAny=sec.events.some(e=>(perf[e]||[]).length>0);if(!hasAny)continue;html+='<div class="perf-section"><div class="perf-section-title">'+sec.title+"</div>";for(var ev of sec.events){var entries=perf[ev]||[];if(!entries.length)continue;var pb=getPB(a,ev);html+='<div class="perf-event-row"><div class="perf-event-name">'+ev+'</div><div class="perf-entries">';var sorted=[...entries].sort((x,y)=>(x.date||"").localeCompare(y.date||""));for(var en of sorted){var isPB=pb&&en.id===pb.id;html+='<div class="perf-entry'+(isPB?" pb":"")+'"><span>'+en.result+unitFor(ev)+"</span><span class='perf-date'>"+fmt(en.date)+"</span>"+(isPB?'<span style="font-size:10px;font-weight:700">PB</span>':"")+( en.notes?'<span class="perf-date" title="'+esc(en.notes)+'">&#9432;</span>':"")+'<button class="perf-del" onclick="delPerfEntry(\''+a.id+"\',\'"+ev+"\',\'"+en.id+'\')">&#10005;</button></div>'}html+="</div></div>"}html+="</div>"}if(!html)html='<p style="font-size:13px;color:var(--text2);margin-bottom:1rem">No results logged yet. Add the first one below.</p>';document.getElementById("perf-body").innerHTML=html}
 function delPerfEntry(aid,event,eid){var a=athletes.find(x=>x.id===aid);if(!a)return;a.performance=a.performance||{};a.performance[event]=(a.performance[event]||[]).filter(e=>e.id!==eid);renderPerfBody(a);renderSquad();saveItem("athletes",a)}
