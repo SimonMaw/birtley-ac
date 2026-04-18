@@ -125,6 +125,10 @@ textarea{resize:vertical;min-height:72px}
 .btn-sm:hover{background:#f3f4f6;}
 .btn-del{border-color:#fca5a5;color:#ef4444;}
 .btn-del:hover{background:#fee2e2;}
+
+.plan-act-header{font-size:.78rem;font-weight:600;color:#6366f1;margin-bottom:.2rem;}
+.plan-time-range{letter-spacing:.01em;}
+.plan-act-body{margin-bottom:.3rem;}
 </style>
 </head>
 <body>
@@ -386,86 +390,58 @@ function renderPlanActs() {
   const el = document.getElementById('pl-acts');
   if(!acts.length) { el.innerHTML = '<p class="empty">No activities yet.</p>'; return; }
 
-  // Calculate start times
-  // Phoenix and Flames activities at the same position run simultaneously
-  // Walk through in order; when we hit a phoenix or flames after a split-capable point,
-  // detect pairs and give them the same start time
   const t = s.time ? s.time.split(':').map(Number) : [0,0];
   let cursor = t[0]*60 + t[1];
 
-  // First pass: assign start times
-  // Rule: if current act is phoenix/flames and next act is the other half,
-  // they share the same start time and we advance by max(their durations)
+  const fmtMin = m => {
+    const h = Math.floor(m/60)%24, mn = m%60;
+    return (h%12||12)+':'+(mn<10?'0':'')+mn+(h<12?'am':'pm');
+  };
+  const catLabel = cat => ({warmup:'Warm-up',endurance:'Endurance',speed:'Speed',strength:'Strength',technique:'Technique',cooldown:'Cool-down',game:'Game',other:'Other'}[cat]||cat||'');
+  const aBadge = ab => ab==='phoenix'?'<span class="badge bphoenix">Phoenix</span>':ab==='flames'?'<span class="badge bflames">Flames</span>':'<span class="badge">Both</span>';
+  const cycleBtn = (idx,ab) => '<button class="btn-sm" onclick="cycleActAbility('+idx+')" title="Toggle group">'+aBadge(ab)+'</button>';
+
+  // Position activities
   const positioned = [];
   let i = 0;
   while(i < acts.length) {
-    const cur = acts[i];
-    const next = acts[i+1];
-    const isSplit = next &&
-      ((cur.ability==='phoenix'&&next.ability==='flames')||(cur.ability==='flames'&&next.ability==='phoenix'));
+    const cur = acts[i], next = acts[i+1];
+    const isSplit = next && ((cur.ability==='phoenix'&&next.ability==='flames')||(cur.ability==='flames'&&next.ability==='phoenix'));
     if(isSplit) {
       const dur = Math.max(parseInt(cur.duration)||0, parseInt(next.duration)||0);
-      positioned.push({...cur, _start: cursor, _idx: i});
-      positioned.push({...next, _start: cursor, _idx: i+1});
-      cursor += dur;
-      i += 2;
+      positioned.push({...cur, _start:cursor, _end:cursor+dur, _idx:i});
+      positioned.push({...next, _start:cursor, _end:cursor+dur, _idx:i+1});
+      cursor += dur; i += 2;
     } else {
-      positioned.push({...cur, _start: cursor, _idx: i});
-      cursor += (parseInt(cur.duration)||0);
-      i++;
+      const dur = parseInt(cur.duration)||0;
+      positioned.push({...cur, _start:cursor, _end:cursor+dur, _idx:i});
+      cursor += dur; i++;
     }
   }
 
-  // Second pass: build rows
+  // Build rows
   const rows = [];
   let j = 0;
   while(j < positioned.length) {
-    const cur = positioned[j];
-    const next = positioned[j+1];
-    if(next && cur._start === next._start &&
-       ((cur.ability==='phoenix'&&next.ability==='flames')||(cur.ability==='flames'&&next.ability==='phoenix'))) {
-      rows.push({type:'split', acts:[cur,next]});
-      j += 2;
-    } else {
-      rows.push({type:'single', acts:[cur]});
-      j++;
-    }
+    const cur = positioned[j], next = positioned[j+1];
+    if(next && cur._start===next._start &&
+      ((cur.ability==='phoenix'&&next.ability==='flames')||(cur.ability==='flames'&&next.ability==='phoenix'))) {
+      rows.push({type:'split', acts:[cur,next]}); j+=2;
+    } else { rows.push({type:'single', acts:[cur]}); j++; }
   }
-
-  const fmtMin = m => {
-    const h = Math.floor(m/60) % 24;
-    const mn = m % 60;
-    const suffix = h < 12 ? 'am' : 'pm';
-    const h12 = h % 12 || 12;
-    return h12 + ':' + (mn < 10 ? '0' : '') + mn + suffix;
-  };
-
-  const catLabel = cat => {
-    const labels = {warmup:'Warm-up',endurance:'Endurance',speed:'Speed',strength:'Strength',technique:'Technique',cooldown:'Cool-down',game:'Game',other:'Other'};
-    return labels[cat] || cat || '';
-  };
-
-  const aBadge = ab => {
-    if(ab==='phoenix') return '<span class="badge bphoenix">Phoenix</span>';
-    if(ab==='flames') return '<span class="badge bflames">Flames</span>';
-    return '<span class="badge">Both</span>';
-  };
-
-  const cycleBtn = (idx, ab) => '<button class="btn-sm" onclick="cycleActAbility('+idx+')" title="Toggle group">'+aBadge(ab)+'</button>';
 
   let html = '';
   rows.forEach(row => {
     if(row.type==='single') {
       const a = row.acts[0];
-      const isFirst = a._idx===0;
-      const isLast = a._idx===acts.length-1;
+      const isFirst = a._idx===0, isLast = a._idx===acts.length-1;
+      const timeRange = fmtMin(a._start)+' – '+fmtMin(a._end);
       html += '<div class="plan-act">';
-      html += '<div class="plan-time">'+fmtMin(a._start)+'</div>';
-      html += '<div class="plan-body"><strong>'+a.name+'</strong>';
+      html += '<div class="plan-act-header"><span class="plan-time-range">'+timeRange+'</span></div>';
+      html += '<div class="plan-act-body"><strong>'+a.name+'</strong>';
       if(a.description) html += '<br><span class="plan-desc">'+a.description+'</span>';
-      html += '<br>';
-      if(a.category) html += '<span class="badge">'+catLabel(a.category)+'</span> ';
-      html += '<span class="plan-dur">'+(a.duration||'?')+' min</span>';
+      html += '<br>'+(a.category?'<span class="badge">'+catLabel(a.category)+'</span> ':'')+
+              '<span class="plan-dur">'+(a.duration||'?')+' min</span>';
       html += '</div>';
       html += '<div class="plan-actions">';
       html += cycleBtn(a._idx, a.ability||'both');
@@ -475,16 +451,15 @@ function renderPlanActs() {
       html += '</div></div>';
     } else {
       const dur = Math.max(parseInt(row.acts[0].duration)||0, parseInt(row.acts[1].duration)||0);
-      const endTime = fmtMin(row.acts[0]._start + dur);
-      html += '<div class="plan-split-header">&#9135; Split '+fmtMin(row.acts[0]._start)+' – '+endTime+'</div>';
+      const startT = fmtMin(row.acts[0]._start), endT = fmtMin(row.acts[0]._start+dur);
+      html += '<div class="plan-split-header">↔ Split '+startT+' – '+endT+'</div>';
       html += '<div class="plan-split-row">';
       row.acts.forEach(a => {
         html += '<div class="plan-act plan-act-half">';
-        html += '<div class="plan-body"><strong>'+a.name+'</strong>';
+        html += '<div class="plan-act-body"><strong>'+a.name+'</strong>';
         if(a.description) html += '<br><span class="plan-desc">'+a.description+'</span>';
-        html += '<br>';
-        if(a.category) html += '<span class="badge">'+catLabel(a.category)+'</span> ';
-        html += '<span class="plan-dur">'+(a.duration||'?')+' min</span>';
+        html += '<br>'+(a.category?'<span class="badge">'+catLabel(a.category)+'</span> ':'')+
+                '<span class="plan-dur">'+(a.duration||'?')+' min</span>';
         html += '</div>';
         html += '<div class="plan-actions">';
         html += cycleBtn(a._idx, a.ability||'both');
