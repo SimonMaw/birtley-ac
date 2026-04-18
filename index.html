@@ -610,40 +610,77 @@ function addFromLibrary(libId){
   closeMo("mLibPick");
   renderPlanActs();renderSessions();var sl=sessions.find(x=>x.id===curSessId);if(sl)saveItem("sessions",JSON.parse(JSON.stringify(sl)));
 }
-function viewSession(id){
-  var s=sessions.find(x=>x.id===id);if(!s)return;
-  document.getElementById("mViewTitle").textContent=esc(s.name||"Untitled");
-  document.getElementById("mViewBuildBtn").onclick=function(){closeMo("mView");openPlanner(id)};
-  var acts=s.activities||[];
-  var html='<div style="font-size:13px;color:var(--text2);margin-bottom:1rem">'+fmt(s.date)+(s.time?' &middot; '+fmtT(s.time):'')+(s.duration?' &middot; '+s.duration+' mins':'')+(s.location?' &middot; '+esc(s.location):'')+'&nbsp;&nbsp;'+grpBadge(s.group)+'</div>';
-  if(s.notes)html+='<div style="font-size:13px;color:var(--text2);font-style:italic;padding:10px 14px;background:var(--yellow-light);border-radius:var(--radius);margin-bottom:1rem;border-left:3px solid var(--yellow-dark)">'+esc(s.notes)+'</div>';
-  if(acts.length){
-    html+='<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">Session plan</div>';
-    var off=0;if(s.time){var p=s.time.split(":");off=parseInt(p[0])*60+parseInt(p[1])}
-    for(var a of acts){
-      var dur=parseInt(a.duration)||0,ts="";
-      if(s.time){var h=Math.floor(off/60),m=off%60;ts=(h>12?h-12:h||12)+":"+(m<10?"0":"")+m+(h>=12?"pm":"am")}
-      html+='<div class="act-block"><div class="act-time">'+(ts||dur+" min")+'</div><div class="act-body"><div class="act-name">'+esc(a.name)+'</div>'+(a.description?'<div class="act-detail">'+esc(a.description)+'</div>':'')+(a.equipment?'<div class="act-detail" style="margin-top:3px">&#127922; '+esc(a.equipment)+'</div>':'')+'<span class="act-cat cat-'+a.category+'">'+catL(a.category)+(dur?' &middot; '+dur+' min':'')+'</span></div></div>';
-      off+=dur;
-    }
+function viewSession(id) {
+  const s = sessions.find(x => x.id === id);
+  if(!s) return;
+  document.getElementById('mViewTitle').textContent = s.name || 'Untitled';
+  document.getElementById('mViewBuildBtn').onclick = () => { closeMo('mView'); openPlanner(id); };
+
+  const acts = s.activities || [];
+  const t = s.time ? s.time.split(':').map(Number) : [0,0];
+  let cursor = t[0]*60 + t[1];
+
+  const fmtMin = m => {
+    const h = Math.floor(m/60)%24, mn = m%60;
+    return (h%12||12)+':'+(mn<10?'0':'')+mn+(h<12?'am':'pm');
+  };
+  const catLabel = cat => ({warmup:'Warm-up',endurance:'Endurance',speed:'Speed',strength:'Strength',technique:'Technique',cooldown:'Cool-down',game:'Game',other:'Other'}[cat]||cat||'');
+  const aBadge = ab => ab==='phoenix'?'<span class="badge bphoenix">Phoenix</span>':ab==='flames'?'<span class="badge bflames">Flames</span>':'<span class="badge">Both</span>';
+
+  const positioned = [];
+  let i = 0;
+  while(i < acts.length) {
+    const cur = acts[i], next = acts[i+1];
+    const isSplit = next && ((cur.ability==='phoenix'&&next.ability==='flames')||(cur.ability==='flames'&&next.ability==='phoenix'));
+    if(isSplit) {
+      const dur = Math.max(parseInt(cur.duration)||0, parseInt(next.duration)||0);
+      positioned.push({...cur, _start:cursor}); positioned.push({...next, _start:cursor});
+      cursor += dur; i += 2;
+    } else { positioned.push({...cur, _start:cursor}); cursor += (parseInt(cur.duration)||0); i++; }
+  }
+
+  const rows = [];
+  let j = 0;
+  while(j < positioned.length) {
+    const cur = positioned[j], next = positioned[j+1];
+    if(next && cur._start===next._start && ((cur.ability==='phoenix'&&next.ability==='flames')||(cur.ability==='flames'&&next.ability==='phoenix'))) {
+      rows.push({type:'split', acts:[cur,next]}); j+=2;
+    } else { rows.push({type:'single', acts:[cur]}); j++; }
+  }
+
+  const meta = [s.date?fmt(s.date):'', s.time?fmtT(s.time):'', s.duration?s.duration+' mins':'', s.location].filter(Boolean).join(' · ');
+  let html = '<p class="view-meta">'+meta+' '+grpBadge(s.group)+'</p><div class="view-divider"></div>';
+
+  if(!acts.length) {
+    html += '<p class="empty">No activities planned yet.</p>';
   } else {
-    html+='<div style="font-size:13px;color:var(--text2);text-align:center;padding:1.5rem">No activities planned yet. Hit Build plan to add some.</div>';
+    html += '<p class="view-section-label">SESSION PLAN</p>';
+    rows.forEach(row => {
+      if(row.type==='single') {
+        const a = row.acts[0];
+        html += '<div class="plan-act"><div class="plan-time">'+fmtMin(a._start)+'</div><div class="plan-body"><strong>'+a.name+'</strong>';
+        if(a.description) html += '<br><span class="plan-desc">'+a.description+'</span>';
+        html += '<br>'+(a.category?'<span class="badge">'+catLabel(a.category)+'</span> ':'')+
+                '<span class="plan-dur">'+(a.duration||'?')+' min</span> '+aBadge(a.ability||'both')+
+                '</div></div>';
+      } else {
+        const dur = Math.max(parseInt(row.acts[0].duration)||0, parseInt(row.acts[1].duration)||0);
+        html += '<div class="plan-split-header">↔ Split '+fmtMin(row.acts[0]._start)+' – '+fmtMin(row.acts[0]._start+dur)+'</div>';
+        html += '<div class="plan-split-row">';
+        row.acts.forEach(a => {
+          html += '<div class="plan-act plan-act-half"><div class="plan-body"><strong>'+a.name+'</strong>';
+          if(a.description) html += '<br><span class="plan-desc">'+a.description+'</span>';
+          html += '<br>'+(a.category?'<span class="badge">'+catLabel(a.category)+'</span> ':'')+
+                  '<span class="plan-dur">'+(a.duration||'?')+' min</span> '+aBadge(a.ability||'both')+
+                  '</div></div>';
+        });
+        html += '</div>';
+      }
+    });
   }
-  var sa=athletes.filter(a=>a.group===s.group||s.group==="both");
-  if(sa.length){
-    var att=s.attendance||{};
-    var pres=sa.filter(a=>att[a.id]==="present");
-    var absent=sa.filter(a=>att[a.id]==="absent");
-    var unknown=sa.filter(a=>!att[a.id]||att[a.id]==="unknown");
-    html+='<div style="margin-top:1rem;padding-top:1rem;border-top:2px solid var(--yellow)">';
-    html+='<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">Attendance ('+pres.length+'/'+sa.length+')</div>';
-    if(pres.length)html+='<div style="margin-bottom:6px">'+pres.map(a=>'<span style="display:inline-block;background:var(--green-bg);color:var(--green-tx);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;margin:2px">&#10003; '+esc(a.firstName+' '+a.lastName)+'</span>').join('')+'</div>';
-    if(absent.length)html+='<div style="margin-bottom:6px">'+absent.map(a=>'<span style="display:inline-block;background:var(--red-bg);color:var(--red-tx);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;margin:2px">&#10007; '+esc(a.firstName+' '+a.lastName)+'</span>').join('')+'</div>';
-    if(unknown.length)html+='<div>'+unknown.map(a=>'<span style="display:inline-block;background:var(--surface2);color:var(--text3);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;margin:2px">? '+esc(a.firstName+' '+a.lastName)+'</span>').join('')+'</div>';
-    html+='</div>';
-  }
-  document.getElementById("mViewBody").innerHTML=html;
-  openMo("mView");
+
+  document.getElementById('mViewBody').innerHTML = html;
+  openMo('mView');
 }
 function exportOverview(){var lines=["BIRTLEY AC ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ COACHING OVERVIEW","==============================","Generated: "+new Date().toLocaleDateString("en-GB"),""];if(athletes.length){lines.push("SQUAD ("+athletes.length+")","");var sorted=[...athletes].sort((a,b)=>(a.lastName||"").localeCompare(b.lastName||""));for(var a of sorted){lines.push(a.firstName+" "+a.lastName+" ["+grpL(a.group)+"]"+(a.dob?" DOB: "+fmt(a.dob):"")+(a.events?" | "+a.events:""));var perf=a.performance||{};for(var ev of ALL_EVENTS){var entries=perf[ev]||[];if(!entries.length)continue;var pb=getPB(a,ev);var u=unitFor(ev);lines.push("  "+ev+": "+entries.map(e=>e.result+u+" ("+fmt(e.date)+")"+(pb&&e.id===pb.id?" [PB]":"")).join(", "))}lines.push("")}}if(sessions.length){lines.push("SESSIONS ("+sessions.length+")","");for(var s of [...sessions].sort((a,b)=>(a.date||"").localeCompare(b.date||"")))lines.push("- "+(s.name||"Untitled")+" | "+fmt(s.date)+(s.time?" "+fmtT(s.time):"")+(" | ")+grpL(s.group)+(s.location?" | "+s.location:""));lines.push("")}if(competitions.length){lines.push("COMPETITIONS ("+competitions.length+")","");for(var c of competitions)lines.push("- "+c.name+" | "+fmt(c.date)+" | "+grpL(c.group)+(c.venue?" | "+c.venue:""))}var blob=new Blob([lines.join("\n")],{type:"text/plain"});var url=URL.createObjectURL(blob);var lnk=document.createElement("a");lnk.href=url;lnk.download="birtley_ac_overview.txt";lnk.click();URL.revokeObjectURL(url)}
 document.querySelectorAll(".tab").forEach(function(t){t.addEventListener("click",function(){document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".sec").forEach(x=>x.classList.remove("active"));t.classList.add("active");document.getElementById("tab-"+t.dataset.tab).classList.add("active")})});
