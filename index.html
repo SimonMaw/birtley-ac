@@ -401,33 +401,32 @@ function renderPlanActs() {
   const aBadge = ab => ab==='phoenix'?'<span class="badge bphoenix">Phoenix</span>':ab==='flames'?'<span class="badge bflames">Flames</span>':'<span class="badge">Both</span>';
   const cycleBtn = (idx,ab) => '<button class="btn-sm" onclick="cycleActAbility('+idx+')" title="Toggle group">'+aBadge(ab)+'</button>';
 
-  // Position activities
-  const positioned = [];
+  const rows = [];
   let i = 0;
   while(i < acts.length) {
-    const cur = acts[i], next = acts[i+1];
-    const isSplit = next && ((cur.ability==='phoenix'&&next.ability==='flames')||(cur.ability==='flames'&&next.ability==='phoenix'));
-    if(isSplit) {
-      const dur = Math.max(parseInt(cur.duration)||0, parseInt(next.duration)||0);
-      positioned.push({...cur, _start:cursor, _end:cursor+dur, _idx:i});
-      positioned.push({...next, _start:cursor, _end:cursor+dur, _idx:i+1});
-      cursor += dur; i += 2;
+    const ab = acts[i].ability;
+    if(ab === 'phoenix' || ab === 'flames') {
+      const group = [];
+      let j = i;
+      while(j < acts.length && (acts[j].ability === 'phoenix' || acts[j].ability === 'flames')) { group.push({...acts[j], _idx: j}); j++; }
+      const phoenixActs = group.filter(a => a.ability === 'phoenix');
+      const flamesActs  = group.filter(a => a.ability === 'flames');
+      if(phoenixActs.length && flamesActs.length) {
+        const splitDur = Math.max(phoenixActs.reduce((s,a)=>s+(parseInt(a.duration)||0),0), flamesActs.reduce((s,a)=>s+(parseInt(a.duration)||0),0));
+        const splitStart = cursor;
+        let phC = splitStart; phoenixActs.forEach(a => { const d=parseInt(a.duration)||0; a._start=phC; a._end=phC+d; phC+=d; });
+        let flC = splitStart; flamesActs.forEach(a => { const d=parseInt(a.duration)||0; a._start=flC; a._end=flC+d; flC+=d; });
+        cursor += splitDur;
+        rows.push({type:'split', phoenixActs, flamesActs, splitStart, splitEnd: splitStart+splitDur});
+      } else {
+        group.forEach(a => { const dur=parseInt(a.duration)||0; a._start=cursor; a._end=cursor+dur; cursor+=dur; rows.push({type:'single',acts:[a]}); });
+      }
+      i = j;
     } else {
-      const dur = parseInt(cur.duration)||0;
-      positioned.push({...cur, _start:cursor, _end:cursor+dur, _idx:i});
-      cursor += dur; i++;
+      const dur=parseInt(acts[i].duration)||0;
+      const a={...acts[i],_idx:i,_start:cursor,_end:cursor+dur};
+      cursor+=dur; rows.push({type:'single',acts:[a]}); i++;
     }
-  }
-
-  // Build rows
-  const rows = [];
-  let j = 0;
-  while(j < positioned.length) {
-    const cur = positioned[j], next = positioned[j+1];
-    if(next && cur._start===next._start &&
-      ((cur.ability==='phoenix'&&next.ability==='flames')||(cur.ability==='flames'&&next.ability==='phoenix'))) {
-      rows.push({type:'split', acts:[cur,next]}); j+=2;
-    } else { rows.push({type:'single', acts:[cur]}); j++; }
   }
 
   let html = '';
@@ -450,17 +449,32 @@ function renderPlanActs() {
       html += '<button class="btn-sm btn-del" onclick="removePlanAct('+a._idx+')">&#x2715;</button>';
       html += '</div></div>';
     } else {
-      const dur = Math.max(parseInt(row.acts[0].duration)||0, parseInt(row.acts[1].duration)||0);
-      const startT = fmtMin(row.acts[0]._start), endT = fmtMin(row.acts[0]._start+dur);
+      const startT = fmtMin(row.splitStart), endT = fmtMin(row.splitEnd);
       html += '<div class="plan-split-header">↔ Split '+startT+' – '+endT+'</div>';
       html += '<div class="plan-split-row">';
-      row.acts.forEach(a => {
-        html += '<div class="plan-act plan-act-half">';
-        html += '<div class="plan-act-body"><strong>'+a.name+'</strong>';
+      html += '<div style="flex:1;display:flex;flex-direction:column;">';
+      row.phoenixActs.forEach(a => {
+        html += '<div class="plan-act plan-act-half"><div class="plan-act-body"><strong>'+a.name+'</strong>';
         if(a.description) html += '<br><span class="plan-desc">'+a.description+'</span>';
         html += '<br>'+(a.category?'<span class="badge">'+catLabel(a.category)+'</span> ':'')+
                 '<span class="plan-dur">'+(a.duration||'?')+' min</span>';
-        html += '</div>';
+        html += '</div><div class="plan-actions">';
+        html += cycleBtn(a._idx, a.ability||'both');
+        html += '<button class="btn-sm btn-del" onclick="removePlanAct('+a._idx+')">&#x2715;</button>';
+        html += '</div></div>';
+      });
+      html += '</div><div style="flex:1;display:flex;flex-direction:column;">';
+      row.flamesActs.forEach(a => {
+        html += '<div class="plan-act plan-act-half"><div class="plan-act-body"><strong>'+a.name+'</strong>';
+        if(a.description) html += '<br><span class="plan-desc">'+a.description+'</span>';
+        html += '<br>'+(a.category?'<span class="badge">'+catLabel(a.category)+'</span> ':'')+
+                '<span class="plan-dur">'+(a.duration||'?')+' min</span>';
+        html += '</div><div class="plan-actions">';
+        html += cycleBtn(a._idx, a.ability||'both');
+        html += '<button class="btn-sm btn-del" onclick="removePlanAct('+a._idx+')">&#x2715;</button>';
+        html += '</div></div>';
+      });
+      html += '</div></div>';
         html += '<div class="plan-actions">';
         html += cycleBtn(a._idx, a.ability||'both');
         html += '<button class="btn-sm btn-del" onclick="removePlanAct('+a._idx+')">&#x2715;</button>';
