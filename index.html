@@ -475,12 +475,6 @@ function renderPlanActs() {
         html += '</div></div>';
       });
       html += '</div></div>';
-        html += '<div class="plan-actions">';
-        html += cycleBtn(a._idx, a.ability||'both');
-        html += '<button class="btn-sm btn-del" onclick="removePlanAct('+a._idx+')">&#x2715;</button>';
-        html += '</div></div>';
-      });
-      html += '</div>';
     }
   });
   el.innerHTML = html;
