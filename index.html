@@ -298,7 +298,7 @@ async function dbDelete(table, id){
 
 var sessions=[],athletes=[],competitions=[],library=[];
 var curSessId=null,editSessId=null,editAthId=null,editCompId=null,editLibId=null,perfAthId=null,grpFilter="all",showArchived=false;
-var TRACK=["60m","75m","100m","200m","400m","600m","800m","1500m","Bleep test"];
+var TRACK=["60m","75m","100m","200m","400m","600m","800m","1500m","1k","3k","Junior parkrun","Parkrun","Bleep test"];
 var FIELD=["Standing long jump","Long jump","High jump","Shot put","Javelin","Triple jump","Discus"];
 var ALL_EVENTS=TRACK.concat(FIELD);
 function isBleep(e){return e==="Bleep test"}
