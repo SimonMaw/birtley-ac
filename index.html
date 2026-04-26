@@ -161,6 +161,7 @@ textarea{resize:vertical;min-height:72px}
   <button class="tab" data-tab="squad">Squad &amp; performance</button>
   <button class="tab" data-tab="competitions">Competitions</button>
   <button class="tab" data-tab="library">Activity library</button>
+  <button class="tab" data-tab="warmup">Warm Up Guide</button>
 </div>
 <div id="tab-sessions" class="sec active"><div id="sess-list"></div></div>
 <div id="tab-planner" class="sec">
@@ -181,6 +182,63 @@ textarea{resize:vertical;min-height:72px}
 <div id="tab-competitions" class="sec">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><div style="font-size:14px;color:var(--text2)">Upcoming meets and competitions</div><button class="btn" onclick="openAddComp()">+ Add competition</button></div>
   <div id="comp-list"></div>
+</div>
+<div id="tab-warmup" class="sec">
+<h2>Birtley AC Warm Up Guide</h2>
+<p style="color:#666;margin-bottom:1.5rem;">Follow this step-by-step routine before every session. Each drill builds on the last &mdash; focus on good form throughout.</p>
+<div style="display:flex;flex-direction:column;gap:1rem;">
+<details open style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid #1a73e8;">
+<summary style="font-weight:700;font-size:1.05rem;cursor:pointer;margin-bottom:0.5rem;">1. Easy Jog &mdash; 3-4 mins</summary>
+<p>Start with a gentle jog around the track or field. Keep the pace easy enough to hold a conversation. This raises your heart rate gradually and gets blood flowing to the muscles.</p>
+</details>
+<details open style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid #1a73e8;">
+<summary style="font-weight:700;font-size:1.05rem;cursor:pointer;margin-bottom:0.5rem;">2. Dynamic Stretches &mdash; in place</summary>
+<p><strong>Leg swings</strong> &mdash; Hold a wall for balance. Swing one leg forward and back 10 times, then side to side 10 times. Repeat on the other leg.<br><br>
+<strong>Hip circles</strong> &mdash; Hands on hips, feet shoulder-width apart. Big slow circles with your hips, 5 each direction.<br><br>
+<strong>Arm circles</strong> &mdash; Arms out wide, circle forwards 10 times then backwards 10 times.</p>
+</details>
+<details open style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid #1a73e8;">
+<summary style="font-weight:700;font-size:1.05rem;cursor:pointer;margin-bottom:0.5rem;">3. A Skips &mdash; 2 x 20m</summary>
+<p><strong>What:</strong> A marching/skipping drill focusing on knee drive and arm mechanics.<br><br>
+<strong>How:</strong><br>
+&bull; Drive one knee up to hip height while pushing off the ball of the opposite foot<br>
+&bull; Arms work in opposition &mdash; left arm forward with right knee up<br>
+&bull; Stay tall, don't lean back<br>
+&bull; Land softly on the ball of your foot under your hips<br>
+&bull; Keep a quick, rhythmic tempo<br><br>
+<strong>Focus:</strong> High knee, pawing action back to the ground, strong arm drive. Walk back to start between reps.</p>
+</details>
+<details open style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid #1a73e8;">
+<summary style="font-weight:700;font-size:1.05rem;cursor:pointer;margin-bottom:0.5rem;">4. B Skips &mdash; 2 x 20m</summary>
+<p><strong>What:</strong> An extension of A skips &mdash; adds a leg extension and pawing cycle that mimics the full running stride.<br><br>
+<strong>How:</strong><br>
+&bull; Begin the same as A skips &mdash; drive the knee up to hip height<br>
+&bull; Then extend the lower leg out in front<br>
+&bull; Paw the foot back down before ground contact &mdash; don't stomp<br>
+&bull; Land under your centre of mass on the ball of your foot<br>
+&bull; Arms stay active in opposition throughout<br><br>
+<strong>Focus:</strong> The extension and paw-back is the key addition over A skips. Keep it controlled. Walk back between reps.</p>
+</details>
+<details open style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid #1a73e8;">
+<summary style="font-weight:700;font-size:1.05rem;cursor:pointer;margin-bottom:0.5rem;">5. High Knees &mdash; 2 x 20m</summary>
+<p>Run forward driving knees up to hip height as quickly as possible. Stay on the balls of your feet, chest tall, arms pumping. This raises intensity and activates fast-twitch muscles.</p>
+</details>
+<details open style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid #1a73e8;">
+<summary style="font-weight:700;font-size:1.05rem;cursor:pointer;margin-bottom:0.5rem;">6. Butt Kicks &mdash; 2 x 20m</summary>
+<p>Jog forward flicking your heels up behind you to touch your glutes. Keep knees pointing down and upper body relaxed. Activates the hamstrings and improves leg cycle speed.</p>
+</details>
+<details open style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid #1a73e8;">
+<summary style="font-weight:700;font-size:1.05rem;cursor:pointer;margin-bottom:0.5rem;">7. Carioca &mdash; 2 x 20m each direction</summary>
+<p>Move sideways, crossing one foot in front then behind alternately. Keep hips rotating and shoulders square to the front. Great for hip mobility and coordination. Do both directions.</p>
+</details>
+<details open style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid #1a73e8;">
+<summary style="font-weight:700;font-size:1.05rem;cursor:pointer;margin-bottom:0.5rem;">8. Strides &mdash; 3 x 60m</summary>
+<p>Controlled accelerations &mdash; build from 60% effort up to 90% over 60m, then decelerate smoothly. Prepares the nervous system for fast running. Walk back fully between each. This is the final step before the main session.</p>
+</details>
+<div style="background:#e8f5e9;border-radius:8px;padding:1rem;border-left:4px solid #43a047;margin-top:0.5rem;">
+&#x2714; <strong>Ready to go!</strong> &mdash; Full warm up takes approximately 15 minutes. Never skip it &mdash; a thorough warm up reduces injury risk and helps athletes perform better in every session.
+</div>
+</div>
 </div>
 <div id="tab-library" class="sec">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><div style="font-size:14px;color:var(--text2)">Reusable activities for any session</div><button class="btn" onclick="openAddLib()">+ Add activity</button></div>
