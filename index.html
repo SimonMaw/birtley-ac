@@ -742,8 +742,9 @@ function shareSessionWhatsApp(id){
   const s = sessions.find(x=>x.id===id);
   if(!s) return;
   const date = s.date ? new Date(s.date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
-  const groupLabel = s.group==='phoenix'?'Phoenix':s.group==='flames'?'Flames':s.group==='both'||s.group==='all'?'All groups':s.group||'';
-  
+  const groupLabel = s.group==='phoenix'?'Phoenix':s.group==='flames'?'Flames':(s.group==='both'||s.group==='all')?'All groups':s.group||'';
+  const fmt = m => { const h=Math.floor(m/60)%24; const mn=m%60; return h+':'+(mn<10?'0':'')+mn; };
+
   let msg = '*Birtley AC - ' + (s.name||'Session') + '*\n';
   msg += '\uD83D\uDCC5 ' + date + '\n';
   if(s.time) msg += '\u23F0 ' + s.time;
@@ -754,38 +755,40 @@ function shareSessionWhatsApp(id){
 
   if(s.activities && s.activities.length > 0){
     msg += '\n*Session Plan:*\n';
-    // Calculate start times for each activity
     let startMins = 0;
-    if(s.time){
-      const parts = s.time.split(':');
-      startMins = parseInt(parts[0])*60 + parseInt(parts[1]||0);
-    }
-    // Group split activities (same order value = split)
-    const processed = [];
-    const seen = new Set();
-    s.activities.forEach(a => {
-      if(a.order !== undefined && a.order !== null && a.order !== ''){
-        const siblings = s.activities.filter(x => x.order === a.order);
-        if(!seen.has(a.order)){
-          seen.add(a.order);
-          processed.push({type:'split', activities: siblings, duration: parseInt(siblings[0].duration)||0});
-        }
-      } else {
-        processed.push({type:'single', activities:[a], duration: parseInt(a.duration)||0});
-      }
-    });
+    if(s.time){ const p=s.time.split(':'); startMins=parseInt(p[0])*60+parseInt(p[1]||0); }
 
-    processed.forEach((block, i) => {
-      const blockStart = startMins;
+    // Group consecutive ability-tagged activities as a split block
+    const blocks = [];
+    let i = 0;
+    while(i < s.activities.length){
+      const a = s.activities[i];
+      if(a.ability){
+        // Collect all consecutive ability-tagged activities as one split block
+        const splitActs = [];
+        while(i < s.activities.length && s.activities[i].ability){
+          splitActs.push(s.activities[i]);
+          i++;
+        }
+        // Duration of split = max duration among the group
+        const dur = Math.max(...splitActs.map(x => parseInt(x.duration)||0));
+        blocks.push({type:'split', activities: splitActs, duration: dur});
+      } else {
+        blocks.push({type:'single', activities:[a], duration: parseInt(a.duration)||0});
+        i++;
+      }
+    }
+
+    blocks.forEach(block => {
       const blockEnd = startMins + block.duration;
-      const fmt = m => { const h=Math.floor(m/60)%24; const mn=m%60; return h+':'+(mn<10?'0':'')+mn; };
+      const timeStr = fmt(startMins) + ' - ' + fmt(blockEnd);
       startMins = blockEnd;
 
       if(block.type === 'split'){
-        msg += '\n\u21C6 *Split ' + fmt(blockStart) + ' - ' + fmt(blockEnd) + '*\n';
+        msg += '\n\u21C6 *Split ' + timeStr + '*\n';
         block.activities.forEach(a => {
           const grp = a.ability==='phoenix'?'Phoenix':a.ability==='flames'?'Flames':'';
-          msg += (grp ? '*[' + grp + ']* ' : '') + '*' + a.name + '*';
+          msg += '*[' + grp + ']* *' + a.name + '*';
           if(a.duration) msg += ' (' + a.duration + ' mins)';
           msg += '\n';
           if(a.description) msg += '   ' + a.description + '\n';
@@ -793,10 +796,7 @@ function shareSessionWhatsApp(id){
         });
       } else {
         const a = block.activities[0];
-        const grp = a.ability==='phoenix'?'Phoenix':a.ability==='flames'?'Flames':'';
-        msg += '\n*' + fmt(blockStart) + ' - ' + fmt(blockEnd) + '* ';
-        if(grp) msg += '*[' + grp + ']* ';
-        msg += '*' + a.name + '*';
+        msg += '\n*' + timeStr + '* *' + a.name + '*';
         if(a.duration) msg += ' (' + a.duration + ' mins)';
         msg += '\n';
         if(a.description) msg += '   ' + a.description + '\n';
