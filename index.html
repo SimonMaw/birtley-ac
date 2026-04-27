@@ -742,25 +742,70 @@ function shareSessionWhatsApp(id){
   const s = sessions.find(x=>x.id===id);
   if(!s) return;
   const date = s.date ? new Date(s.date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
-  const group = s.group==='u11'?'U11':s.group==='u13'?'U13':s.group==='u15'?'U15':s.group==='u17'?'U17':s.group==='both'?'All groups':s.group||'';
+  const groupLabel = s.group==='phoenix'?'Phoenix':s.group==='flames'?'Flames':s.group==='both'||s.group==='all'?'All groups':s.group||'';
+  
   let msg = '*Birtley AC - ' + (s.name||'Session') + '*\n';
-  msg += '📅 ' + date + '\n';
-  if(s.time) msg += '⏰ ' + s.time;
+  msg += '\uD83D\uDCC5 ' + date + '\n';
+  if(s.time) msg += '\u23F0 ' + s.time;
   if(s.duration) msg += ' (' + s.duration + ' mins)';
   msg += '\n';
-  if(s.location) msg += '📍 ' + s.location + '\n';
-  if(group) msg += '👥 ' + group + '\n';
-  if(s.activities && s.activities.length>0){
+  if(s.location) msg += '\uD83D\uDCCD ' + s.location + '\n';
+  if(groupLabel) msg += '\uD83D\uDC65 ' + groupLabel + '\n';
+
+  if(s.activities && s.activities.length > 0){
     msg += '\n*Session Plan:*\n';
-    s.activities.forEach((a,i)=>{
-      msg += (i+1) + '. *' + a.name + '*';
-      if(a.duration) msg += ' (' + a.duration + ' mins)';
-      msg += '\n';
-      if(a.description) msg += '   ' + a.description + '\n';
-      if(a.equipment) msg += '   🏃 Equipment: ' + a.equipment + '\n';
+    // Calculate start times for each activity
+    let startMins = 0;
+    if(s.time){
+      const parts = s.time.split(':');
+      startMins = parseInt(parts[0])*60 + parseInt(parts[1]||0);
+    }
+    // Group split activities (same order value = split)
+    const processed = [];
+    const seen = new Set();
+    s.activities.forEach(a => {
+      if(a.order !== undefined && a.order !== null && a.order !== ''){
+        const siblings = s.activities.filter(x => x.order === a.order);
+        if(!seen.has(a.order)){
+          seen.add(a.order);
+          processed.push({type:'split', activities: siblings, duration: parseInt(siblings[0].duration)||0});
+        }
+      } else {
+        processed.push({type:'single', activities:[a], duration: parseInt(a.duration)||0});
+      }
+    });
+
+    processed.forEach((block, i) => {
+      const blockStart = startMins;
+      const blockEnd = startMins + block.duration;
+      const fmt = m => { const h=Math.floor(m/60)%24; const mn=m%60; return h+':'+(mn<10?'0':'')+mn; };
+      startMins = blockEnd;
+
+      if(block.type === 'split'){
+        msg += '\n\u21C6 *Split ' + fmt(blockStart) + ' - ' + fmt(blockEnd) + '*\n';
+        block.activities.forEach(a => {
+          const grp = a.ability==='phoenix'?'Phoenix':a.ability==='flames'?'Flames':'';
+          msg += (grp ? '*[' + grp + ']* ' : '') + '*' + a.name + '*';
+          if(a.duration) msg += ' (' + a.duration + ' mins)';
+          msg += '\n';
+          if(a.description) msg += '   ' + a.description + '\n';
+          if(a.equipment) msg += '   \uD83C\uDFC3 Equipment: ' + a.equipment + '\n';
+        });
+      } else {
+        const a = block.activities[0];
+        const grp = a.ability==='phoenix'?'Phoenix':a.ability==='flames'?'Flames':'';
+        msg += '\n*' + fmt(blockStart) + ' - ' + fmt(blockEnd) + '* ';
+        if(grp) msg += '*[' + grp + ']* ';
+        msg += '*' + a.name + '*';
+        if(a.duration) msg += ' (' + a.duration + ' mins)';
+        msg += '\n';
+        if(a.description) msg += '   ' + a.description + '\n';
+        if(a.equipment) msg += '   \uD83C\uDFC3 Equipment: ' + a.equipment + '\n';
+      }
     });
   }
-  if(s.notes) msg += '\n📝 *Notes:* ' + s.notes + '\n';
+
+  if(s.notes) msg += '\n\uD83D\uDCDD *Notes:* ' + s.notes + '\n';
   msg += '\n_Birtley Athletics Club_';
   const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
   window.open(url, '_blank');
