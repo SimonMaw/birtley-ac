@@ -168,7 +168,7 @@ textarea{resize:vertical;min-height:72px}
   <div id="pl-empty" class="empty-state"><p style="font-size:2rem;margin-bottom:10px">&#128203;</p><p>Select a session from the Sessions tab to build its plan.</p></div>
   <div id="pl-content" style="display:none">
     <div class="card card-accent" style="margin-bottom:1rem"><div class="card-header"><div><div class="card-title" id="pl-name"></div><div class="card-meta" id="pl-meta"></div></div><div style="display:flex;gap:6px;flex-wrap:wrap" id="pl-badges"></div></div></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:700">Session plan</div><div class="row-actions"><button class="btn" onclick="if(curSessId)copySession(curSessId)">Copy session</button><button class="btn" onclick="openLibraryPicker()">From library</button><button class="btn pri" onclick="openAddActivity()">+ New activity</button></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:700">Session plan</div><div class="row-actions"><button class="btn" onclick="if(curSessId)copySession(curSessId)">Copy session</button><button class="btn" onclick="if(curSessId)shareSessionWhatsApp(curSessId)" style="background:#25D366;color:#fff">📤 Share via WhatsApp</button><button class="btn" onclick="openLibraryPicker()">From library</button><button class="btn pri" onclick="openAddActivity()">+ New activity</button></div></div>
     <div id="pl-acts"></div>
     <div style="margin-top:1.5rem;border-top:2px solid var(--yellow);padding-top:1rem"><div style="font-size:14px;font-weight:700;margin-bottom:10px">Attendance</div><div id="pl-attendance"></div></div>
   </div>
@@ -737,6 +737,34 @@ async function init(){
 }
   
 init();
+
+function shareSessionWhatsApp(id){
+  const s = sessions.find(x=>x.id===id);
+  if(!s) return;
+  const date = s.date ? new Date(s.date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
+  const group = s.group==='u11'?'U11':s.group==='u13'?'U13':s.group==='u15'?'U15':s.group==='u17'?'U17':s.group==='both'?'All groups':s.group||'';
+  let msg = '*Birtley AC - ' + (s.name||'Session') + '*\n';
+  msg += '📅 ' + date + '\n';
+  if(s.time) msg += '⏰ ' + s.time;
+  if(s.duration) msg += ' (' + s.duration + ' mins)';
+  msg += '\n';
+  if(s.location) msg += '📍 ' + s.location + '\n';
+  if(group) msg += '👥 ' + group + '\n';
+  if(s.activities && s.activities.length>0){
+    msg += '\n*Session Plan:*\n';
+    s.activities.forEach((a,i)=>{
+      msg += (i+1) + '. *' + a.name + '*';
+      if(a.duration) msg += ' (' + a.duration + ' mins)';
+      msg += '\n';
+      if(a.description) msg += '   ' + a.description + '\n';
+      if(a.equipment) msg += '   🏃 Equipment: ' + a.equipment + '\n';
+    });
+  }
+  if(s.notes) msg += '\n📝 *Notes:* ' + s.notes + '\n';
+  msg += '\n_Birtley Athletics Club_';
+  const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
 </script>
 <div id="mEntries" class="overlay"><div class="modal"><div class="modal-header"><div class="modal-title" id="mEntriesT"></div><button class="close-btn" onclick="closeMo('mEntries')">&#10005;</button></div><div id="mEntriesBody"></div><div class="modal-footer"><button class="btn" onclick="closeMo('mEntries')">Close</button></div></div></div></body>
 </html>
