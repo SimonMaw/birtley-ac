@@ -298,6 +298,25 @@ textarea{resize:vertical;min-height:72px}
     <div style="text-align:right"><button class="btn pri" onclick="savePerf()">Log result</button></div>
   </div>
 </div></div>
+<div id="mAssess" class="overlay"><div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">
+  <div class="modal-header"><div class="modal-title" id="mAssessT">Athlete Assessment</div><button class="close-btn" onclick="closeMo('mAssess')">&#x2715;</button></div>
+  <div style="padding:8px 0 4px;font-size:12px;color:var(--text2)">EA Athletics Coach assessment record</div>
+  <div class="fr"><label>Date</label><input type="date" id="as-date"></div>
+  <div style="font-weight:600;font-size:14px;margin:14px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--yellow)">Fundamental Movement Skills</div>
+  <div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:6px;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px"><div></div><div>Activity used</div><div>Observations &amp; conclusions</div></div>
+  <div id="as-fms-rows"></div>
+  <div style="font-weight:600;font-size:14px;margin:14px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--yellow)">Technical Assessment</div>
+  <div style="display:grid;grid-template-columns:160px 1fr 1fr;gap:6px;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px"><div></div><div style="color:var(--green-tx)">Matches &#10003;</div><div style="color:#cc2222">Mismatches &#10007;</div></div>
+  <div id="as-tech-rows"></div>
+  <div style="font-weight:600;font-size:14px;margin:14px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--yellow)">Components of Fitness</div>
+  <div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:6px;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px"><div></div><div>Assessment activity</div><div>Observations &amp; conclusions</div></div>
+  <div id="as-fit-rows"></div>
+  <div id="as-history" style="margin-top:16px"></div>
+  <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
+    <button class="btn" onclick="shareAssessmentWhatsApp()" style="background:#e1f5ee;color:#085041">&#128172; Share to WhatsApp</button>
+    <div><button class="btn" onclick="closeMo('mAssess')">Cancel</button> <button class="btn pri" onclick="saveAssessment()">Save assessment</button></div>
+  </div>
+</div></div>
 
 <div id="mComp" class="overlay"><div class="modal">
   <div class="modal-header"><div class="modal-title" id="mCompT">Add competition</div><button class="close-btn" onclick="closeMo('mComp')">&times;</button></div>
@@ -354,7 +373,7 @@ async function dbDelete(table, id){
   await fetch(SUPA_URL+"/rest/v1/"+table+"?id=eq."+id,{method:"DELETE",headers:{"apikey":SUPA_KEY,"Authorization":"Bearer "+SUPA_KEY}});
 }
 
-var sessions=[],athletes=[],competitions=[],library=[];
+var sessions=[],athletes=[],competitions=[],library=[],assessments=[];
 var curSessId=null,editSessId=null,editAthId=null,editCompId=null,editLibId=null,perfAthId=null,grpFilter="all",showArchived=false;
 var TRACK=["60m","75m","100m","200m","400m","600m","800m","1500m","1k","3k","Junior parkrun","Parkrun","Bleep test"];
 var FIELD=["Standing long jump","Long jump","High jump","Shot put","Javelin","Triple jump","Discus"];
@@ -591,6 +610,7 @@ function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();
     html += '<div style="margin-top:4px"><button class="btn sm" style="font-size:11px" onclick="cycleAbility(\'' + a.id + '\')">' + (!a.ability || a.ability === "none" ? "Set ability" : a.ability === "phoenix" ? "&#128293; Phoenix" : "&#129331; Flames") + '</button></div>';
     html += '</div>'; // closes left column div
     html += '<div class="row-actions">';
+    html += '<button class="btn sm" onclick="openAssessment(' + a.id + ')">Assessment</button>';
     html += '<button class="btn sm suc" onclick="openPerf(\'' + a.id + '\')">Performance log</button>';
     html += '<button class="btn sm" onclick="editAthlete(\'' + a.id + '\')">Edit</button>';
     html += '<button class="btn sm dan" onclick="delAthlete(\'' + a.id + '\')">Remove</button>';
@@ -726,11 +746,33 @@ function viewSession(id) {
 function exportOverview(){var lines=["BIRTLEY AC ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ COACHING OVERVIEW","==============================","Generated: "+new Date().toLocaleDateString("en-GB"),""];if(athletes.length){lines.push("SQUAD ("+athletes.length+")","");var sorted=[...athletes].sort((a,b)=>(a.lastName||"").localeCompare(b.lastName||""));for(var a of sorted){lines.push(a.firstName+" "+a.lastName+" ["+grpL(a.group)+"]"+(a.dob?" DOB: "+fmt(a.dob):"")+(a.events?" | "+a.events:""));var perf=a.performance||{};for(var ev of ALL_EVENTS){var entries=perf[ev]||[];if(!entries.length)continue;var pb=getPB(a,ev);var u=unitFor(ev);lines.push("  "+ev+": "+entries.map(e=>e.result+u+" ("+fmt(e.date)+")"+(pb&&e.id===pb.id?" [PB]":"")).join(", "))}lines.push("")}}if(sessions.length){lines.push("SESSIONS ("+sessions.length+")","");for(var s of [...sessions].sort((a,b)=>(a.date||"").localeCompare(b.date||"")))lines.push("- "+(s.name||"Untitled")+" | "+fmt(s.date)+(s.time?" "+fmtT(s.time):"")+(" | ")+grpL(s.group)+(s.location?" | "+s.location:""));lines.push("")}if(competitions.length){lines.push("COMPETITIONS ("+competitions.length+")","");for(var c of competitions)lines.push("- "+c.name+" | "+fmt(c.date)+" | "+grpL(c.group)+(c.venue?" | "+c.venue:""))}var blob=new Blob([lines.join("\n")],{type:"text/plain"});var url=URL.createObjectURL(blob);var lnk=document.createElement("a");lnk.href=url;lnk.download="birtley_ac_overview.txt";lnk.click();URL.revokeObjectURL(url)}
 document.querySelectorAll(".tab").forEach(function(t){t.addEventListener("click",function(){document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".sec").forEach(x=>x.classList.remove("active"));t.classList.add("active");document.getElementById("tab-"+t.dataset.tab).classList.add("active")})});
 document.querySelectorAll(".overlay").forEach(function(o){o.addEventListener("click",function(e){if(e.target===o)o.classList.remove("open")})});
+
+var assessAthId=null;
+var FMS_SKILLS=['Agility','Balance','Coordination'];
+var TECH_EVENTS=['Jumping for height','Jumping for distance','Push throw','Pull throw','Starts','Drive and acceleration','Max velocity running','Running over obstacles','Endurance running'];
+var FIT_COMPS=['Endurance','Speed','Strength','Flexibility','Coordination'];
+function assessKey(label){return label.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');}
+function buildAssessRows(){var fms='';FMS_SKILLS.forEach(function(s){var k=assessKey(s);fms+='<div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:6px;margin-bottom:8px"><div style="font-size:12px;font-weight:600;padding-top:6px">'+s+'</div><textarea id="as-fms-'+k+'-act" rows="2" style="font-size:12px;padding:5px;border:1px solid var(--border);border-radius:var(--radius);resize:vertical" placeholder="Activity used"></textarea><textarea id="as-fms-'+k+'-obs" rows="2" style="font-size:12px;padding:5px;border:1px solid var(--border);border-radius:var(--radius);resize:vertical" placeholder="What you saw / conclusions"></textarea></div>';});document.getElementById('as-fms-rows').innerHTML=fms;var tech='';TECH_EVENTS.forEach(function(s){var k=assessKey(s);tech+='<div style="display:grid;grid-template-columns:160px 1fr 1fr;gap:6px;margin-bottom:8px"><div style="font-size:12px;font-weight:600;padding-top:6px">'+s+'</div><textarea id="as-tech-'+k+'-match" rows="2" style="font-size:12px;padding:5px;border:1px solid var(--border);border-radius:var(--radius);resize:vertical" placeholder="Technical matches"></textarea><textarea id="as-tech-'+k+'-mis" rows="2" style="font-size:12px;padding:5px;border:1px solid var(--border);border-radius:var(--radius);resize:vertical" placeholder="Technical mismatches"></textarea></div>';});document.getElementById('as-tech-rows').innerHTML=tech;var fit='';FIT_COMPS.forEach(function(s){var k=assessKey(s);fit+='<div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:6px;margin-bottom:8px"><div style="font-size:12px;font-weight:600;padding-top:6px">'+s+'</div><textarea id="as-fit-'+k+'-act" rows="2" style="font-size:12px;padding:5px;border:1px solid var(--border);border-radius:var(--radius);resize:vertical" placeholder="Test / method used"></textarea><textarea id="as-fit-'+k+'-obs" rows="2" style="font-size:12px;padding:5px;border:1px solid var(--border);border-radius:var(--radius);resize:vertical" placeholder="What you saw / conclusions"></textarea></div>';});document.getElementById('as-fit-rows').innerHTML=fit;}
+function openAssessment(id){var a=athletes.find(function(x){return x.id===id;});if(!a)return;assessAthId=id;document.getElementById('mAssessT').textContent=a.firstName+' '+a.lastName+' — Assessment';document.getElementById('as-date').value=new Date().toISOString().split('T')[0];buildAssessRows();renderAssessHistory(a);openMo('mAssess');}
+function renderAssessHistory(a){var recs=assessments.filter(function(x){return x.athleteId===a.id;}).sort(function(x,y){return y.date.localeCompare(x.date);});if(!recs.length){document.getElementById('as-history').innerHTML='';return;}var html='<div style="font-weight:600;font-size:13px;margin-bottom:8px;padding-top:12px;border-top:1px solid var(--border)">Previous assessments ('+recs.length+')</div>';recs.forEach(function(r){var d=new Date(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});html+='<div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;font-size:12px"><div style="font-weight:600;margin-bottom:4px">'+d+'</div>';var strengths=[];TECH_EVENTS.forEach(function(s){var v=r.tech&&r.tech[assessKey(s)]&&r.tech[assessKey(s)].match;if(v)strengths.push(s+': '+v);});if(strengths.length)html+='<div><span style="color:var(--green-tx);font-weight:600">Strengths: </span>'+strengths.slice(0,3).join(' | ')+'</div>';html+='</div>';});document.getElementById('as-history').innerHTML=html;}
+function saveAssessment(){if(!assessAthId)return;var date=document.getElementById('as-date').value;if(!date){alert('Please enter a date');return;}var fms={};FMS_SKILLS.forEach(function(s){var k=assessKey(s);fms[k]={activity:document.getElementById('as-fms-'+k+'-act').value,obs:document.getElementById('as-fms-'+k+'-obs').value};});var tech={};TECH_EVENTS.forEach(function(s){var k=assessKey(s);tech[k]={match:document.getElementById('as-tech-'+k+'-match').value,mis:document.getElementById('as-tech-'+k+'-mis').value};});var fit={};FIT_COMPS.forEach(function(s){var k=assessKey(s);fit[k]={activity:document.getElementById('as-fit-'+k+'-act').value,obs:document.getElementById('as-fit-'+k+'-obs').value};});var obj={id:uid(),athleteId:assessAthId,date:date,fms:fms,tech:tech,fit:fit};assessments.push(obj);saveItem('assessments',obj);var a=athletes.find(function(x){return x.id===assessAthId;});if(a)renderAssessHistory(a);setSaved();alert('Assessment saved!');}
+function shareAssessmentWhatsApp(){if(!assessAthId)return;var a=athletes.find(function(x){return x.id===assessAthId;});if(!a)return;var recs=assessments.filter(function(x){return x.athleteId===assessAthId;}).sort(function(x,y){return y.date.localeCompare(x.date);});if(!recs.length){alert('No saved assessments for '+a.firstName+'. Save one first.');return;}var r=recs[0];var d=new Date(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});var strengths=[];TECH_EVENTS.forEach(function(s){var v=r.tech&&r.tech[assessKey(s)]&&r.tech[assessKey(s)].match;if(v)strengths.push('✅ '+s+': '+v);});FMS_SKILLS.forEach(function(s){var v=r.fms&&r.fms[assessKey(s)]&&r.fms[assessKey(s)].obs;if(v&&strengths.length<5)strengths.push('✅ '+s+': '+v);});var devs=[];TECH_EVENTS.forEach(function(s){var v=r.tech&&r.tech[assessKey(s)]&&r.tech[assessKey(s)].mis;if(v)devs.push('🎯 '+s+': '+v);});FIT_COMPS.forEach(function(s){var v=r.fit&&r.fit[assessKey(s)]&&r.fit[assessKey(s)].obs;if(v&&devs.length<5)devs.push('🎯 '+s+': '+v);});var msg='*'+a.firstName+' '+a.lastName+' — Coach Assessment*
+📅 '+d+'
+
+';if(strengths.length)msg+='*Strengths*
+'+strengths.join('
+')+'
+
+';if(devs.length)msg+='*Areas to develop*
+'+devs.join('
+')+'
+
+';msg+='_Birtley Athletics Club_';window.open('https://api.whatsapp.com/send/?text='+encodeURIComponent(msg)+'&type=custom_url&app_absent=0');}
 async function init(){
   document.getElementById("save-label").textContent="Loading...";
   try{
-    var results = await Promise.all([dbGet("sessions"),dbGet("athletes"),dbGet("competitions"),dbGet("library")]);
-    sessions=results[0];athletes=results[1];competitions=results[2];library=results[3];
+    var results = await Promise.all([dbGet("sessions"),dbGet("athletes"),dbGet("competitions"),dbGet("library"),dbGet("assessments")]);
+    sessions=results[0];athletes=results[1];competitions=results[2];library=results[3];assessments=results[4];
   }catch(e){console.error("Init failed:",e);sessions=[];athletes=[];competitions=[];library=[]}
   document.getElementById("save-label").textContent="All saved";
   renderSessions();renderSquad();renderCompetitions();renderLibrary();
