@@ -771,9 +771,10 @@ function shareAssessmentWhatsApp(){if(!assessAthId)return;var a=athletes.find(fu
 async function init(){
   document.getElementById("save-label").textContent="Loading...";
   try{
-    var results = await Promise.all([dbGet("sessions"),dbGet("athletes"),dbGet("competitions"),dbGet("library"),dbGet("assessments")]);
-    sessions=results[0];athletes=results[1];competitions=results[2];library=results[3];assessments=results[4];
+    var results = await Promise.all([dbGet("sessions"),dbGet("athletes"),dbGet("competitions"),dbGet("library")]);
+    sessions=results[0];athletes=results[1];competitions=results[2];library=results[3];
   }catch(e){console.error("Init failed:",e);sessions=[];athletes=[];competitions=[];library=[]}
+  try{assessments=await dbGet("assessments");}catch(e2){console.warn("Assessments table not ready",e2);assessments=[];}
   document.getElementById("save-label").textContent="All saved";
   renderSessions();renderSquad();renderCompetitions();renderLibrary();
 }
