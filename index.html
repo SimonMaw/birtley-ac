@@ -757,18 +757,24 @@ function buildAssessRows(){var fms='';FMS_SKILLS.forEach(function(s){var k=asses
 function openAssessment(id){var a=athletes.find(function(x){return x.id===id;});if(!a)return;assessAthId=id;document.getElementById('mAssessT').textContent=a.firstName+' '+a.lastName+' — Assessment';document.getElementById('as-date').value=new Date().toISOString().split('T')[0];buildAssessRows();renderAssessHistory(a);openMo('mAssess');}
 function renderAssessHistory(a){var recs=assessments.filter(function(x){return x.athleteId===a.id;}).sort(function(x,y){return y.date.localeCompare(x.date);});if(!recs.length){document.getElementById('as-history').innerHTML='';return;}var html='<div style="font-weight:600;font-size:13px;margin-bottom:8px;padding-top:12px;border-top:1px solid var(--border)">Previous assessments ('+recs.length+')</div>';recs.forEach(function(r){var d=new Date(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});html+='<div style="background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;font-size:12px"><div style="font-weight:600;margin-bottom:4px">'+d+'</div>';var strengths=[];TECH_EVENTS.forEach(function(s){var v=r.tech&&r.tech[assessKey(s)]&&r.tech[assessKey(s)].match;if(v)strengths.push(s+': '+v);});if(strengths.length)html+='<div><span style="color:var(--green-tx);font-weight:600">Strengths: </span>'+strengths.slice(0,3).join(' | ')+'</div>';html+='</div>';});document.getElementById('as-history').innerHTML=html;}
 function saveAssessment(){if(!assessAthId)return;var date=document.getElementById('as-date').value;if(!date){alert('Please enter a date');return;}var fms={};FMS_SKILLS.forEach(function(s){var k=assessKey(s);fms[k]={activity:document.getElementById('as-fms-'+k+'-act').value,obs:document.getElementById('as-fms-'+k+'-obs').value};});var tech={};TECH_EVENTS.forEach(function(s){var k=assessKey(s);tech[k]={match:document.getElementById('as-tech-'+k+'-match').value,mis:document.getElementById('as-tech-'+k+'-mis').value};});var fit={};FIT_COMPS.forEach(function(s){var k=assessKey(s);fit[k]={activity:document.getElementById('as-fit-'+k+'-act').value,obs:document.getElementById('as-fit-'+k+'-obs').value};});var obj={id:uid(),athleteId:assessAthId,date:date,fms:fms,tech:tech,fit:fit};assessments.push(obj);saveItem('assessments',obj);var a=athletes.find(function(x){return x.id===assessAthId;});if(a)renderAssessHistory(a);setSaved();alert('Assessment saved!');}
-function shareAssessmentWhatsApp(){if(!assessAthId)return;var a=athletes.find(function(x){return x.id===assessAthId;});if(!a)return;var recs=assessments.filter(function(x){return x.athleteId===assessAthId;}).sort(function(x,y){return y.date.localeCompare(x.date);});if(!recs.length){alert('No saved assessments for '+a.firstName+'. Save one first.');return;}var r=recs[0];var d=new Date(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});var strengths=[];TECH_EVENTS.forEach(function(s){var v=r.tech&&r.tech[assessKey(s)]&&r.tech[assessKey(s)].match;if(v)strengths.push('✅ '+s+': '+v);});FMS_SKILLS.forEach(function(s){var v=r.fms&&r.fms[assessKey(s)]&&r.fms[assessKey(s)].obs;if(v&&strengths.length<5)strengths.push('✅ '+s+': '+v);});var devs=[];TECH_EVENTS.forEach(function(s){var v=r.tech&&r.tech[assessKey(s)]&&r.tech[assessKey(s)].mis;if(v)devs.push('🎯 '+s+': '+v);});FIT_COMPS.forEach(function(s){var v=r.fit&&r.fit[assessKey(s)]&&r.fit[assessKey(s)].obs;if(v&&devs.length<5)devs.push('🎯 '+s+': '+v);});var msg='*'+a.firstName+' '+a.lastName+' — Coach Assessment*
-📅 '+d+'
-
-';if(strengths.length)msg+='*Strengths*
-'+strengths.join('
-')+'
-
-';if(devs.length)msg+='*Areas to develop*
-'+devs.join('
-')+'
-
-';msg+='_Birtley Athletics Club_';window.open('https://api.whatsapp.com/send/?text='+encodeURIComponent(msg)+'&type=custom_url&app_absent=0');}
+function shareAssessmentWhatsApp(){
+  if(!assessAthId)return;
+  var a=athletes.find(function(x){return x.id===assessAthId;});
+  if(!a)return;
+  var recs=assessments.filter(function(x){return x.athleteId===assessAthId;}).sort(function(x,y){return y.date.localeCompare(x.date);});
+  if(!recs.length){alert("No assessments recorded yet.");return;}
+  var r=recs[0];
+  var d=r.data||{};
+  var msg="*Birtley AC Athlete Assessment*\n";
+  msg+="Athlete: "+a.name+"\n";
+  msg+="Date: "+r.date+"\n\n";
+  if(d.strengths)msg+="*Strengths*\n"+d.strengths+"\n\n";
+  if(d.improvements)msg+="*Areas for Improvement*\n"+d.improvements+"\n\n";
+  if(d.targets)msg+="*Targets*\n"+d.targets+"\n\n";
+  if(d.notes)msg+="*Notes*\n"+d.notes+"\n\n";
+  var url="https://wa.me/?text="+encodeURIComponent(msg);
+  window.open(url,"_blank");
+}
 async function init(){
   document.getElementById("save-label").textContent="Loading...";
   try{
