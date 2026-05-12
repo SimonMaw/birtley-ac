@@ -611,7 +611,7 @@ function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();
     html += '<div style="margin-top:4px"><button class="btn sm" style="font-size:11px" onclick="cycleAbility(\'' + a.id + '\')">' + (!a.ability || a.ability === "none" ? "Set ability" : a.ability === "phoenix" ? "&#128293; Phoenix" : "&#129331; Flames") + '</button></div>';
     html += '</div>'; // closes left column div
     html += '<div class="row-actions">';
-    html += '<button class="btn sm" onclick="openAssessment(' + a.id + ')">Assessment</button>';
+    html += '<button class="btn sm" onclick="openAssessment(\x27' + a.id + '\x27)">Assessment</button>';
     html += '<button class="btn sm suc" onclick="openPerf(\'' + a.id + '\')">Performance log</button>';
     html += '<button class="btn sm" onclick="editAthlete(\'' + a.id + '\')">Edit</button>';
     html += '<button class="btn sm dan" onclick="delAthlete(\'' + a.id + '\')">Remove</button>';
