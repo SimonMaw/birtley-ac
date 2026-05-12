@@ -86,6 +86,7 @@ textarea{resize:vertical;min-height:72px}
 .cat-endurance{background:var(--green-bg);color:var(--green-tx)}
 .cat-cooldown{background:#EAF3DE;color:#27500A}
 .cat-multi{background:#FAECE7;color:#712B13}
+.cat-games{background:#E7F3FA;color:#0D3A5C}
 .att-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
 .att-row:last-child{border-bottom:none}
 .att-name{flex:1;font-size:14px;font-weight:500}
@@ -271,7 +272,7 @@ textarea{resize:vertical;min-height:72px}
 <div id="mAct" class="overlay"><div class="modal">
   <div class="modal-header"><div class="modal-title">Add activity</div><button class="close-btn" onclick="closeMo('mAct')">&times;</button></div>
   <div class="fr"><label>Activity name</label><input id="a-name" placeholder="e.g. Flying 30s, Hurdle drills..."/></div>
-  <div class="g2"><div class="fr"><label>Category</label><select id="a-cat"><option value="warmup">Warm-up</option><option value="track">Track &amp; sprints</option><option value="field">Field events</option><option value="endurance">Endurance</option><option value="multi">Multi-events</option><option value="cooldown">Cool-down</option></select></div><div class="fr"><label>Duration (mins)</label><input type="number" id="a-dur" value="15" min="5" step="5"/></div></div>
+  <div class="g2"><div class="fr"><label>Category</label><select id="a-cat"><option value="warmup">Warm-up</option><option value="track">Track &amp; sprints</option><option value="field">Field events</option><option value="endurance">Endurance</option><option value="multi">Multi-events</option><option value="cooldown">Cool-down</option><option value="games">Games</option></select></div><div class="fr"><label>Duration (mins)</label><input type="number" id="a-dur" value="15" min="5" step="5"/></div></div>
   <div class="fr"><label>Description / instructions</label><textarea id="a-desc" placeholder="Reps, sets, coaching points..."></textarea></div>
   <div class="fr"><label>Equipment needed</label><input id="a-equip" placeholder="Cones, hurdles, stopwatch..."/></div>
   <div class="cb-row"><input type="checkbox" id="a-savelib"/><label for="a-savelib">Also save to activity library</label></div>
@@ -392,7 +393,7 @@ function grpL(g){return{u11:"U11s",u15:"U15s",both:"Both"}[g]||g}
 function grpBadge(g){var c={u11:"bu11",u15:"bu15",both:"bboth"}[g]||"bu11";return'<span class="badge '+c+'">'+grpL(g)+'</span>'}
 function abilityL(a){return{phoenix:"Phoenix",flames:"Flames",both:"Both"}[a]||""}
 function abilityBadge(a){if(!a||a==="both")return"";var cls={phoenix:"bphoenix",flames:"bflames"}[a]||"bphoenix";return"<span class='badge "+cls+"'>"+abilityL(a)+"</span>"}
-function catL(c){return{warmup:"Warm-up",track:"Track & sprints",field:"Field events",endurance:"Endurance",multi:"Multi-events",cooldown:"Cool-down"}[c]||c}
+function catL(c){return{warmup:"Warm-up",track:"Track & sprints",field:"Field events",endurance:"Endurance",multi:"Multi-events",cooldown:"Cool-down",games:"Games"}[c]||c}
 function isUp(d){if(!d)return false;return new Date(d+"T00:00:00")>=new Date(new Date().toDateString())}
 var BG=["#E6F1FB","#fdfbe0","#E1F5EE","#FAEEDA","#EAF3DE","#e8edf8"];
 var TX=["#0C447C","#5a4800","#085041","#633806","#27500A","#1a3fa0"];
