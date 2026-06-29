@@ -164,6 +164,7 @@ textarea{resize:vertical;min-height:72px}
   <button class="tab" data-tab="competitions">Competitions</button>
   <button class="tab" data-tab="library">Activity library</button>
   <button class="tab" data-tab="warmup">Warm Up Guide</button>
+  <button class="tab" data-tab="po10feed">🏅 Results Feed</button>
 </div>
 <div id="tab-sessions" class="sec active"><div id="sess-list"></div></div>
 <div id="tab-planner" class="sec">
@@ -286,6 +287,7 @@ textarea{resize:vertical;min-height:72px}
   <div class="fr"><label>Events / specialisms</label><input id="ah-events" placeholder="e.g. 100m, Long jump..."/></div>
   <div class="fr"><div class="form-row"><label>Notes<textarea id="ah-notes" placeholder="Any relevant notes..."></textarea></label></div>
 <div class="form-row"><label>Ability group<select id="ah-ability"><option value="">Not set</option><option value="phoenix">Phoenix</option><option value="flames">Flames</option></select></label></div><label class="cb-row"><input type="checkbox" id="ah-consent"/><span>Photo consent received &#10003; images can be shared online</span></label></div>
+  <div class="fr"><label>Power of 10 ID <span style="font-size:11px;color:var(--text3);font-weight:400">(from powerof10.uk profile URL)</span></label><input id="ah-po10id" placeholder="e.g. 123456"/></div>
   <div class="modal-footer"><button class="btn" onclick="closeMo('mAth')">Cancel</button><button class="btn pri" onclick="saveAth()">Save athlete</button></div>
 </div></div>
 
@@ -344,6 +346,24 @@ textarea{resize:vertical;min-height:72px}
   <div id="lib-pick-body"></div>
 </div></div>
 
+
+<div id="tab-po10feed" class="sec">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div style="font-size:18px;font-weight:700;color:var(--text)">Power of 10 Results Feed</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:2px">Latest results for your squad from Power of 10</div>
+    </div>
+    <button class="btn pri" onclick="refreshPo10Feed()">↻ Refresh</button>
+  </div>
+  <div id="po10-feed-status" style="display:none;font-size:13px;color:var(--text2);margin-bottom:12px;padding:10px;background:var(--surface2);border-radius:var(--radius);border:1.5px solid var(--border)"></div>
+  <div id="po10-feed-list" style="display:flex;flex-direction:column;gap:10px">
+    <div style="text-align:center;padding:3rem;color:var(--text3)">
+      <div style="font-size:2.5rem;margin-bottom:10px">🏅</div>
+      <div style="font-weight:600;margin-bottom:6px">No results loaded yet</div>
+      <div style="font-size:13px">Add Power of 10 IDs to your athletes then click Refresh</div>
+    </div>
+  </div>
+</div>
 <script>
 const SUPA_URL = "https://npummhaimqnpfyvzicdn.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdW1taGFpbXFucGZ5dnppY2RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTkyNzMsImV4cCI6MjA4OTU5NTI3M30.hvEOK4VO9uzC1XFa4AKm8xXI-8eMFqYJ720eTcWgRNs";
@@ -628,7 +648,7 @@ function getUKAAgeGroup(dob){if(!dob)return'';var y=new Date(dob).getFullYear();
 }
 function openPerf(id){perfAthId=id;var a=athletes.find(x=>x.id===id);if(!a)return;document.getElementById("mPerfT").textContent=a.firstName+" "+a.lastName+" · performance log";var sel=document.getElementById("p-event");sel.innerHTML=ALL_EVENTS.map(e=>"<option value='"+e+"'>"+e+"</option>").join("");document.getElementById("p-date").value=new Date().toISOString().split("T")[0];document.getElementById("p-result").value="";document.getElementById("p-notes").value="";updatePerfLabel();renderPerfBody(a);openMo("mPerf")}
 function updatePerfLabel(){var ev=document.getElementById("p-event").value;document.getElementById("p-result-label").textContent=labelFor(ev);document.getElementById("p-result").placeholder=placeholderFor(ev)}
-function renderPerfBody(a){var perf=a.performance||{};var secs=[{title:"Track events",events:TRACK},{title:"Field events",events:FIELD}];var html="";for(var sec of secs){var hasAny=sec.events.some(e=>(perf[e]||[]).length>0);if(!hasAny)continue;html+='<div class="perf-section"><div class="perf-section-title">'+sec.title+"</div>";for(var ev of sec.events){var entries=perf[ev]||[];if(!entries.length)continue;var pb=getPB(a,ev);html+='<div class="perf-event-row"><div class="perf-event-name">'+ev+'</div><div class="perf-entries">';var sorted=[...entries].sort((x,y)=>(x.date||"").localeCompare(y.date||""));for(var en of sorted){var isPB=pb&&en.id===pb.id;html+='<div class="perf-entry'+(isPB?" pb":"")+'"><span>'+en.result+unitFor(ev)+"</span><span class='perf-date'>"+fmt(en.date)+"</span>"+(isPB?'<span style="font-size:10px;font-weight:700">PB</span>':"")+( en.notes?'<span class="perf-date" title="'+esc(en.notes)+'">&#9432;</span>':"")+'<button class="perf-del" onclick="delPerfEntry(\''+a.id+"\',\'"+ev+"\',\'"+en.id+'\')">&#10005;</button></div>'}html+="</div></div>"}html+="</div>"}if(!html)html='<p style="font-size:13px;color:var(--text2);margin-bottom:1rem">No results logged yet. Add the first one below.</p>';document.getElementById("perf-body").innerHTML=html}
+function renderPerfBody(a){var perf=a.performance||{};var secs=[{title:"Track events",events:TRACK},{title:"Field events",events:FIELD}];var html="";for(var sec of secs){var hasAny=sec.events.some(e=>(perf[e]||[]).length>0);if(!hasAny)continue;html+='<div class="perf-section"><div class="perf-section-title">'+sec.title+"</div>";for(var ev of sec.events){var entries=perf[ev]||[];if(!entries.length)continue;var pb=getPB(a,ev);html+='<div class="perf-event-row"><div class="perf-event-name">'+ev+'</div><div class="perf-entries">';var sorted=[...entries].sort((x,y)=>(x.date||"").localeCompare(y.date||""));for(var en of sorted){var isPB=pb&&en.id===pb.id;html+='<div class="perf-entry'+(isPB?" pb":"")+'"><span>'+en.result+unitFor(ev)+"</span><span class='perf-date'>"+fmt(en.date)+"</span>"+(isPB?'<span style="font-size:10px;font-weight:700">PB</span>':"")+( en.notes?'<span class="perf-date" title="'+esc(en.notes)+'">&#9432;</span>':"")+'<button class="perf-del" onclick="delPerfEntry(\''+a.id+"\',\'"+ev+"\',\'"+en.id+'\')">&#10005;</button></div>'}html+="</div></div>"}html+="</div>"}if(!html)html='<p style="font-size:13px;color:var(--text2);margin-bottom:1rem">No results logged yet. Add the first one below.</p>';html+='<div id="po10-athlete-section">'+renderPo10AthleteSection(a.id)+'</div>';document.getElementById("perf-body").innerHTML=html}
 function delPerfEntry(aid,event,eid){var a=athletes.find(x=>x.id===aid);if(!a)return;a.performance=a.performance||{};a.performance[event]=(a.performance[event]||[]).filter(e=>e.id!==eid);renderPerfBody(a);renderSquad();saveItem("athletes",a)}
 function openEntries(compId){window._entriesCompId=compId;var comp=competitions.find(function(x){return x.id===compId;});if(!comp)return;document.getElementById("mEntriesT").textContent=comp.name+" â Entries";var entries=comp.entries||{};var sorted=athletes.slice().sort(function(a,b){return(a.lastName||"").localeCompare(b.lastName||"");});var html="";html+="<div style='margin-bottom:12px;font-size:13px;color:var(--text2)'>Tick athletes confirmed for this competition.</div>";html+="<div style='display:flex;flex-direction:column;gap:8px'>";for(var i=0;i<sorted.length;i++){var a=sorted[i];var chk=entries[a.id]?"checked ":"";html+="<label style='display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius);cursor:pointer'>";html+="<input type='checkbox' data-aid='"+a.id+"' "+chk+"style='width:16px;height:16px;accent-color:var(--yellow)'>";html+="<span style='font-weight:600'>"+esc(a.firstName+" "+a.lastName)+"</span>";html+="<span style='margin-left:auto;font-size:12px;color:var(--text2)'>"+getUKAAgeGroup(a.dob)+"</span>";html+="</label>";}html+="</div>";html+="<div style='margin-top:16px'><button class='btn pri' onclick='saveEntries()'>Save entries</button></div>";document.getElementById("mEntriesBody").innerHTML=html;openMo("mEntries");}function saveEntries(){var compId=window._entriesCompId;var comp=competitions.find(function(x){return x.id===compId;});if(!comp)return;var entries={};var cbs=document.querySelectorAll("#mEntriesBody input[data-aid]");for(var i=0;i<cbs.length;i++){entries[cbs[i].dataset.aid]=cbs[i].checked;}comp.entries=entries;saveItem("competitions",comp);renderCompetitions();closeMo("mEntries");}function compEntriesHtml(comp){var ents=comp.entries||{};var confirmed=athletes.filter(function(a){return ents[a.id]===true;});if(!confirmed.length)return "";var out="<div style='margin-top:10px;padding-top:10px;border-top:1px solid var(--border2)'>";out+="<span style='font-size:12px;font-weight:700;color:var(--text2);margin-right:6px'>Entered ("+confirmed.length+"):</span>";for(var i=0;i<confirmed.length;i++){out+="<span style='background:var(--surface2);border:1px solid var(--border2);font-size:12px;padding:2px 8px;border-radius:20px;display:inline-block;margin:2px'>"+esc(confirmed[i].firstName+" "+confirmed[i].lastName)+"</span>";}out+="</div>";return out;}function renderCompetitions(){stats();var el=document.getElementById("comp-list");if(!competitions.length){el.innerHTML='<div class="empty-state"><p style="font-size:2rem;margin-bottom:10px">&#127942;</p><p>No competitions added yet.</p></div>';return}var sorted=[...competitions].sort((a,b)=>(a.date||"").localeCompare(b.date||""));var up=sorted.filter(c=>isUp(c.date)),past=sorted.filter(c=>!isUp(c.date));var html="";if(up.length){html+='<div class="sec-h">Upcoming</div>';for(var c of up)html+=compCard(c,true)}if(past.length){html+='<div class="sec-h">Past</div>';for(var c of past)html+=compCard(c,false)}el.innerHTML=html}
 function compCard(c,up){return'<div class="card card-accent"><div class="card-header"><div><div style="display:flex;align-items:center"><span class="comp-dot '+(up?"dot-up":"dot-past")+'"></span><div class="card-title">'+esc(c.name)+'</div></div><div class="card-meta">'+fmt(c.date)+(c.venue?" &middot; "+esc(c.venue):"")+'</div></div>'+grpBadge(c.group)+'</div>'+(c.events?'<div style="font-size:13px;color:var(--text2);margin-bottom:6px">Events: '+esc(c.events)+"</div>":"")+(c.notes?'<div style="font-size:13px;color:var(--text2);font-style:italic;margin-bottom:8px">'+esc(c.notes)+"</div>":"")+'<div class="row-actions"><button class="btn sm suc" onclick="openEntries(\''+c.id+'\')">Entries</button><button class="btn sm" onclick="editComp(\''+c.id+'\')">Edit</button><button class="btn sm dan" onclick="delComp(\''+c.id+'\')">Delete</button></div></div>'+compEntriesHtml(c)+"'"}
@@ -640,10 +660,10 @@ function openNewSession(){editSessId=null;["s-name","s-loc","s-notes"].forEach(i
 function saveSess(){var name=document.getElementById("s-name").value.trim();if(!name){alert("Please enter a session name.");return}var obj={id:editSessId||uid(),name,date:document.getElementById("s-date").value,time:document.getElementById("s-time").value,duration:document.getElementById("s-dur").value,group:document.getElementById("s-grp").value,location:document.getElementById("s-loc").value,notes:document.getElementById("s-notes").value};if(editSessId){var i=sessions.findIndex(x=>x.id===editSessId);if(i>=0){obj.activities=sessions[i].activities||[];obj.attendance=sessions[i].attendance||{};sessions[i]=obj}}else{obj.activities=[];obj.attendance={};sessions.push(obj)}closeMo("mSess");renderSessions();saveItem("sessions",obj)}
 function openAddActivity(){["a-name","a-desc","a-equip"].forEach(i=>document.getElementById(i).value="");document.getElementById("a-cat").value="warmup";document.getElementById("a-dur").value="15";document.getElementById("a-savelib").checked=false;document.getElementById("a-ability").value="both";openMo("mAct")}
 function saveAct(){var name=document.getElementById("a-name").value.trim();if(!name){alert("Please enter an activity name.");return}var act={id:uid(),name,category:document.getElementById("a-cat").value,duration:document.getElementById("a-dur").value,description:document.getElementById("a-desc").value,equipment:document.getElementById("a-equip").value,ability:"both"};var s=sessions.find(x=>x.id===curSessId);if(s){s.activities=s.activities||[];s.activities.push(act)}if(document.getElementById("a-savelib").checked){library.push({...act,id:uid()});renderLibrary()}closeMo("mAct");renderPlanActs();renderSessions();if(s)saveItem("sessions",JSON.parse(JSON.stringify(s)))}
-function openAddAthlete(){editAthId=null;["ah-fn","ah-ln","ah-dob","ah-events","ah-notes"].forEach(i=>document.getElementById(i).value="");document.getElementById("ah-grp").value="u11";document.getElementById("ah-consent").checked=false;document.getElementById("ah-ability").value="";document.getElementById("mAthT").textContent="Add athlete";openMo("mAth")}
-function editAthlete(id){var a=athletes.find(x=>x.id===id);if(!a)return;editAthId=id;document.getElementById("ah-fn").value=a.firstName||"";document.getElementById("ah-ln").value=a.lastName||"";document.getElementById("ah-grp").value=a.group||"u11";document.getElementById("ah-dob").value=a.dob||"";document.getElementById("ah-events").value=a.events||"";document.getElementById("ah-notes").value=a.notes||"";document.getElementById("ah-consent").checked=a.photoConsent||false;document.getElementById("ah-ability").value=a.ability||"";document.getElementById("mAthT").textContent="Edit athlete";openMo("mAth")}
+function openAddAthlete(){editAthId=null;["ah-fn","ah-ln","ah-dob","ah-events","ah-notes","ah-po10id"].forEach(i=>document.getElementById(i).value="");document.getElementById("ah-grp").value="u11";document.getElementById("ah-consent").checked=false;document.getElementById("ah-ability").value="";document.getElementById("mAthT").textContent="Add athlete";openMo("mAth")}
+function editAthlete(id){var a=athletes.find(x=>x.id===id);if(!a)return;editAthId=id;document.getElementById("ah-fn").value=a.firstName||"";document.getElementById("ah-ln").value=a.lastName||"";document.getElementById("ah-grp").value=a.group||"u11";document.getElementById("ah-dob").value=a.dob||"";document.getElementById("ah-events").value=a.events||"";document.getElementById("ah-notes").value=a.notes||"";document.getElementById("ah-consent").checked=a.photoConsent||false;document.getElementById("ah-ability").value=a.ability||"";document.getElementById("ah-po10id").value=a.po10Id||"";document.getElementById("mAthT").textContent="Edit athlete";openMo("mAth")}
 function cycleAbility(id){var a=athletes.find(x=>x.id===id);if(!a)return;var cycle={none:"phoenix",phoenix:"flames",flames:"none"};a.ability=cycle[a.ability||"none"]||"none";if(a.ability==="none")a.ability="";renderSquad();saveItem("athletes",JSON.parse(JSON.stringify(a)));}
-function saveAth(){var fn=document.getElementById("ah-fn").value.trim(),ln=document.getElementById("ah-ln").value.trim();if(!fn||!ln){alert("Please enter first and last name.");return}var obj={id:editAthId||uid(),firstName:fn,lastName:ln,group:document.getElementById("ah-grp").value,dob:document.getElementById("ah-dob").value,events:document.getElementById("ah-events").value,notes:document.getElementById("ah-notes").value,photoConsent:document.getElementById("ah-consent").checked,ability:document.getElementById("ah-ability").value};if(editAthId){var i=athletes.findIndex(x=>x.id===editAthId);if(i>=0){obj.performance=athletes[i].performance||{};athletes[i]=obj}}else{obj.performance={};athletes.push(obj)}closeMo("mAth");renderSquad();if(curSessId)renderAttendance();saveItem("athletes",obj)}
+function saveAth(){var fn=document.getElementById("ah-fn").value.trim(),ln=document.getElementById("ah-ln").value.trim();if(!fn||!ln){alert("Please enter first and last name.");return}var obj={id:editAthId||uid(),firstName:fn,lastName:ln,group:document.getElementById("ah-grp").value,dob:document.getElementById("ah-dob").value,events:document.getElementById("ah-events").value,notes:document.getElementById("ah-notes").value,photoConsent:document.getElementById("ah-consent").checked,ability:document.getElementById("ah-ability").value,po10Id:document.getElementById("ah-po10id").value.trim()};if(editAthId){var i=athletes.findIndex(x=>x.id===editAthId);if(i>=0){obj.performance=athletes[i].performance||{};athletes[i]=obj}}else{obj.performance={};athletes.push(obj)}closeMo("mAth");renderSquad();if(curSessId)renderAttendance();saveItem("athletes",obj)}
 function delAthlete(id){if(!confirm("Remove this athlete?"))return;athletes=athletes.filter(a=>a.id!==id);renderSquad();if(curSessId)renderAttendance();deleteItem("athletes",id)}
 function savePerf(){var a=athletes.find(x=>x.id===perfAthId);if(!a)return;var ev=document.getElementById("p-event").value;var result=document.getElementById("p-result").value.trim();if(!result){alert("Please enter a result.");return}a.performance=a.performance||{};a.performance[ev]=a.performance[ev]||[];a.performance[ev].push({id:uid(),result,date:document.getElementById("p-date").value,notes:document.getElementById("p-notes").value});document.getElementById("p-result").value="";document.getElementById("p-notes").value="";renderPerfBody(a);renderSquad();saveItem("athletes",a)}
 function openAddComp(){editCompId=null;["c-name","c-venue","c-events","c-notes"].forEach(i=>document.getElementById(i).value="");document.getElementById("c-date").value="";document.getElementById("c-grp").value="u11";document.getElementById("mCompT").textContent="Add competition";openMo("mComp")}
@@ -861,6 +881,289 @@ function shareSessionWhatsApp(id){
   const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
   window.open(url, '_blank');
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+//  POWER OF 10 RESULTS FEED
+// ═══════════════════════════════════════════════════════════════
+
+var po10Cache = {};   // { athleteId: { fetched: timestamp, results: [], pbs: {}, name: '' } }
+var PO10_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+function po10Url(id) {
+  return 'https://www.powerof10.uk/athletes/profile.aspx?athleteid=' + id;
+}
+
+async function fetchPo10Athlete(po10Id) {
+  var now = Date.now();
+  if (po10Cache[po10Id] && (now - po10Cache[po10Id].fetched) < PO10_CACHE_TTL) {
+    return po10Cache[po10Id];
+  }
+  // Use allorigins CORS proxy
+  var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(po10Url(po10Id));
+  var resp = await fetch(proxyUrl);
+  var json = await resp.json();
+  var html = json.contents;
+  if (!html) throw new Error('No content returned');
+  var parsed = parsePo10Html(html, po10Id);
+  po10Cache[po10Id] = { fetched: now, ...parsed };
+  return po10Cache[po10Id];
+}
+
+function parsePo10Html(html, po10Id) {
+  // Parse athlete name
+  var nameMatch = html.match(/<h2[^>]*>([^<]+)<\/h2>/i);
+  var name = nameMatch ? nameMatch[1].trim() : 'Athlete ' + po10Id;
+
+  // Parse results table - Po10 uses tables for results
+  // Look for performance rows: event, perf, wind, grade, pos, venue, date
+  var results = [];
+  var pbs = {};
+
+  // Find results tables - Po10 has a table with class or id containing results
+  // Extract all table rows with performance data
+  var rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  var cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+  var tagRegex = /<[^>]+>/g;
+
+  function stripTags(s) { return s.replace(tagRegex, '').trim(); }
+
+  var rows = [];
+  var m;
+  while ((m = rowRegex.exec(html)) !== null) {
+    var cells = [];
+    var cm;
+    var rowHtml = m[1];
+    var cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    while ((cm = cellRe.exec(rowHtml)) !== null) {
+      cells.push(stripTags(cm[1]));
+    }
+    if (cells.length >= 6) {
+      rows.push(cells);
+    }
+  }
+
+  // Po10 result rows typically: Event | Perf | Wind | PB? | Pos | Venue | Meeting | Date
+  // Filter for rows that look like athletic results (have a date in last col)
+  var dateRe = /^\d{2}\/\d{2}\/\d{2,4}$/;
+  var perfRe = /^\d+[\.:]\d+|^\d+\.\d+m?$|^[\d]+$/;
+
+  rows.forEach(function(cells) {
+    var lastCell = cells[cells.length - 1];
+    if (dateRe.test(lastCell)) {
+      var event = cells[0];
+      var perf = cells[1];
+      var wind = cells[2] || '';
+      var pos = cells[4] || '';
+      var venue = cells[5] || '';
+      var date = lastCell;
+      if (event && perf && perf !== 'Perf') {
+        results.push({ event, perf, wind, pos, venue, date });
+        // Track PBs - first occurrence of each event is the PB (Po10 sorts best first in profile)
+        if (!pbs[event]) pbs[event] = perf;
+      }
+    }
+  });
+
+  // Sort results by date descending (most recent first)
+  results.sort(function(a, b) {
+    return parsePo10Date(b.date) - parsePo10Date(a.date);
+  });
+
+  return { name, results: results.slice(0, 30), pbs };
+}
+
+function parsePo10Date(d) {
+  if (!d) return 0;
+  var parts = d.split('/');
+  if (parts.length === 3) {
+    var yr = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+    return new Date(yr + '-' + parts[1] + '-' + parts[0]).getTime();
+  }
+  return 0;
+}
+
+function po10ResultAge(dateStr) {
+  var ms = Date.now() - parsePo10Date(dateStr);
+  var days = Math.floor(ms / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return days + 'd ago';
+  if (days < 30) return Math.floor(days/7) + 'w ago';
+  if (days < 365) return Math.floor(days/30) + 'mo ago';
+  return Math.floor(days/365) + 'y ago';
+}
+
+async function refreshPo10Feed() {
+  var withPo10 = athletes.filter(function(a) { return a.po10Id && a.po10Id.trim(); });
+  var statusEl = document.getElementById('po10-feed-status');
+  var listEl = document.getElementById('po10-feed-list');
+
+  if (!withPo10.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text3)"><div style="font-size:2.5rem;margin-bottom:10px">🏅</div><div style="font-weight:600;margin-bottom:6px">No athletes linked yet</div><div style="font-size:13px">Edit an athlete profile and add their Power of 10 ID</div></div>';
+    return;
+  }
+
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '⏳ Fetching results for ' + withPo10.length + ' athlete(s)…';
+  listEl.innerHTML = '';
+
+  var allResults = [];
+  var errors = [];
+
+  for (var i = 0; i < withPo10.length; i++) {
+    var ath = withPo10[i];
+    statusEl.innerHTML = '⏳ Fetching ' + ath.firstName + ' ' + ath.lastName + ' (' + (i+1) + '/' + withPo10.length + ')…';
+    try {
+      var data = await fetchPo10Athlete(ath.po10Id.trim());
+      data.results.forEach(function(r) {
+        allResults.push(Object.assign({}, r, {
+          athleteId: ath.id,
+          po10Id: ath.po10Id,
+          athleteName: ath.firstName + ' ' + ath.lastName,
+          group: ath.group,
+          ability: ath.ability
+        }));
+      });
+    } catch(e) {
+      errors.push(ath.firstName + ' ' + ath.lastName + ' (' + e.message + ')');
+    }
+  }
+
+  // Sort all results by date
+  allResults.sort(function(a, b) { return parsePo10Date(b.date) - parsePo10Date(a.date); });
+
+  if (errors.length) {
+    statusEl.innerHTML = '⚠️ Could not fetch: ' + errors.join(', ');
+  } else {
+    statusEl.style.display = 'none';
+  }
+
+  if (!allResults.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3)">No results found. Check the Po10 IDs are correct.</div>';
+    return;
+  }
+
+  renderPo10Feed(allResults);
+}
+
+function renderPo10Feed(results) {
+  var listEl = document.getElementById('po10-feed-list');
+  var html = '';
+
+  // Group by date for a timeline feel
+  var byDate = {};
+  results.forEach(function(r) {
+    var key = r.date || 'Unknown';
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(r);
+  });
+
+  var dates = Object.keys(byDate).sort(function(a,b){ return parsePo10Date(b) - parsePo10Date(a); });
+
+  dates.slice(0, 20).forEach(function(date) {
+    var age = po10ResultAge(date);
+    html += '<div style="margin-bottom:8px">';
+    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:8px">';
+    html += '<span>' + date + '</span><span style="color:var(--border2)">·</span><span>' + age + '</span>';
+    html += '</div>';
+
+    byDate[date].forEach(function(r) {
+      var isStar = po10Cache[r.po10Id] && po10Cache[r.po10Id].pbs && po10Cache[r.po10Id].pbs[r.event] === r.perf;
+      html += '<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:6px">';
+      // Avatar / initials
+      html += '<div style="width:36px;height:36px;border-radius:50%;background:var(--blue);color:var(--yellow);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + r.athleteName.split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase() + '</div>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">';
+      html += '<span style="font-weight:600;font-size:14px">' + r.athleteName + '</span>';
+      if (isStar) html += '<span title="Personal Best" style="font-size:12px;background:var(--yellow);color:var(--blue-dark);border-radius:4px;padding:1px 5px;font-weight:700">PB</span>';
+      html += '</div>';
+      html += '<div style="font-size:13px;color:var(--text2)">' + r.event + ' &nbsp;·&nbsp; <strong style="color:var(--text)">' + r.perf + '</strong>';
+      if (r.wind && r.wind !== '0.0' && r.wind !== '') html += ' <span style="color:var(--text3);font-size:12px">(' + r.wind + 'm/s)</span>';
+      if (r.pos) html += ' &nbsp;·&nbsp; ' + ordinal(r.pos);
+      html += '</div>';
+      if (r.venue) html += '<div style="font-size:12px;color:var(--text3);margin-top:1px">📍 ' + r.venue + '</div>';
+      html += '</div>';
+      html += '<a href="' + po10Url(r.po10Id) + '" target="_blank" style="font-size:11px;color:var(--blue-mid);text-decoration:none;flex-shrink:0">Po10 ↗</a>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  listEl.innerHTML = html;
+}
+
+function ordinal(n) {
+  var num = parseInt(n);
+  if (isNaN(num)) return n;
+  var s = ['th','st','nd','rd'];
+  var v = num % 100;
+  return num + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+// Po10 section inside the performance modal
+function renderPo10AthleteSection(athId) {
+  var a = athletes.find(function(x){ return x.id === athId; });
+  if (!a || !a.po10Id) return '<div style="padding:12px;background:var(--surface2);border-radius:var(--radius);border:1.5px dashed var(--border2);text-align:center;font-size:13px;color:var(--text3)">No Power of 10 ID set — add one in Edit athlete</div>';
+
+  var cached = po10Cache[a.po10Id];
+  var html = '<div style="margin-top:1rem;padding-top:1rem;border-top:1.5px solid var(--border)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  html += '<div style="font-size:14px;font-weight:700">🏅 Power of 10</div>';
+  html += '<div style="display:flex;gap:8px;align-items:center">';
+  html += '<a href="' + po10Url(a.po10Id) + '" target="_blank" style="font-size:12px;color:var(--blue-mid);text-decoration:none">View full profile ↗</a>';
+  html += '<button class="btn" style="font-size:12px;padding:4px 10px" onclick="loadPo10ForAthlete('' + a.id + '')">Load results</button>';
+  html += '</div></div>';
+
+  if (!cached) {
+    html += '<div style="font-size:13px;color:var(--text3);padding:10px 0">Click "Load results" to fetch from Power of 10</div>';
+  } else {
+    // Show PBs
+    var pbKeys = Object.keys(cached.pbs || {});
+    if (pbKeys.length) {
+      html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Personal Bests</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+      pbKeys.forEach(function(ev) {
+        html += '<div style="background:var(--blue-light);border:1.5px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:13px"><span style="color:var(--text2)">' + ev + '</span> <strong>' + cached.pbs[ev] + '</strong></div>';
+      });
+      html += '</div>';
+    }
+    // Show last 5 results
+    if (cached.results && cached.results.length) {
+      html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Recent Results</div>';
+      cached.results.slice(0,5).forEach(function(r) {
+        var isStar = cached.pbs && cached.pbs[r.event] === r.perf;
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">';
+        html += '<div><span style="color:var(--text2)">' + r.event + '</span> <strong>' + r.perf + '</strong>';
+        if (isStar) html += ' <span style="font-size:11px;background:var(--yellow);color:var(--blue-dark);border-radius:3px;padding:1px 4px;font-weight:700">PB</span>';
+        html += '</div>';
+        html += '<div style="color:var(--text3)">' + r.date + '</div>';
+        html += '</div>';
+      });
+    }
+    var fetchAge = Math.round((Date.now() - cached.fetched) / 60000);
+    html += '<div style="font-size:11px;color:var(--text3);margin-top:8px">Fetched ' + fetchAge + ' min ago</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+async function loadPo10ForAthlete(athId) {
+  var a = athletes.find(function(x){ return x.id === athId; });
+  if (!a || !a.po10Id) return;
+  try {
+    await fetchPo10Athlete(a.po10Id.trim());
+    // Re-render perf modal if it's open
+    var perfBody = document.getElementById('perf-body');
+    if (perfBody) {
+      var po10Div = document.getElementById('po10-athlete-section');
+      if (po10Div) po10Div.innerHTML = renderPo10AthleteSection(athId);
+    }
+  } catch(e) {
+    alert('Could not fetch Po10 data: ' + e.message);
+  }
+}
+
 </script>
 <div id="mEntries" class="overlay"><div class="modal"><div class="modal-header"><div class="modal-title" id="mEntriesT"></div><button class="close-btn" onclick="closeMo('mEntries')">&#10005;</button></div><div id="mEntriesBody"></div><div class="modal-footer"><button class="btn" onclick="closeMo('mEntries')">Close</button></div></div></div></body>
 </html>
