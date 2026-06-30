@@ -887,8 +887,8 @@ function shareSessionWhatsApp(id){
 //  POWER OF 10 RESULTS FEED
 // ═══════════════════════════════════════════════════════════════
 
-var po10Cache = {};   // { athleteId: { fetched: timestamp, results: [], pbs: {}, name: '' } }
-var PO10_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+var po10Cache = {};
+var PO10_CACHE_TTL = 60 * 60 * 1000;
 
 function po10Url(id) {
   return 'https://www.powerof10.uk/athletes/profile.aspx?athleteid=' + id;
@@ -896,274 +896,166 @@ function po10Url(id) {
 
 async function fetchPo10Athlete(po10Id) {
   var now = Date.now();
-  if (po10Cache[po10Id] && (now - po10Cache[po10Id].fetched) < PO10_CACHE_TTL) {
-    return po10Cache[po10Id];
-  }
-  // Use allorigins CORS proxy
+  if (po10Cache[po10Id] && (now - po10Cache[po10Id].fetched) < PO10_CACHE_TTL) return po10Cache[po10Id];
   var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(po10Url(po10Id));
   var resp = await fetch(proxyUrl);
   var json = await resp.json();
   var html = json.contents;
   if (!html) throw new Error('No content returned');
-  var parsed = parsePo10Html(html, po10Id);
-  po10Cache[po10Id] = { fetched: now, ...parsed };
+  var parsed = parsePo10Html(html);
+  po10Cache[po10Id] = Object.assign({ fetched: now }, parsed);
   return po10Cache[po10Id];
 }
 
-function parsePo10Html(html, po10Id) {
-  // Parse athlete name
+function parsePo10Html(html) {
   var nameMatch = html.match(/<h2[^>]*>([^<]+)<\/h2>/i);
-  var name = nameMatch ? nameMatch[1].trim() : 'Athlete ' + po10Id;
-
-  // Parse results table - Po10 uses tables for results
-  // Look for performance rows: event, perf, wind, grade, pos, venue, date
-  var results = [];
-  var pbs = {};
-
-  // Find results tables - Po10 has a table with class or id containing results
-  // Extract all table rows with performance data
+  var name = nameMatch ? nameMatch[1].trim() : 'Athlete';
+  var results = [], pbs = {};
   var rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  var cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
   var tagRegex = /<[^>]+>/g;
-
   function stripTags(s) { return s.replace(tagRegex, '').trim(); }
-
-  var rows = [];
-  var m;
-  while ((m = rowRegex.exec(html)) !== null) {
-    var cells = [];
-    var cm;
-    var rowHtml = m[1];
-    var cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    while ((cm = cellRe.exec(rowHtml)) !== null) {
-      cells.push(stripTags(cm[1]));
-    }
-    if (cells.length >= 6) {
-      rows.push(cells);
-    }
-  }
-
-  // Po10 result rows typically: Event | Perf | Wind | PB? | Pos | Venue | Meeting | Date
-  // Filter for rows that look like athletic results (have a date in last col)
   var dateRe = /^\d{2}\/\d{2}\/\d{2,4}$/;
-  var perfRe = /^\d+[\.:]\d+|^\d+\.\d+m?$|^[\d]+$/;
-
-  rows.forEach(function(cells) {
-    var lastCell = cells[cells.length - 1];
-    if (dateRe.test(lastCell)) {
-      var event = cells[0];
-      var perf = cells[1];
-      var wind = cells[2] || '';
-      var pos = cells[4] || '';
-      var venue = cells[5] || '';
-      var date = lastCell;
-      if (event && perf && perf !== 'Perf') {
-        results.push({ event, perf, wind, pos, venue, date });
-        // Track PBs - first occurrence of each event is the PB (Po10 sorts best first in profile)
-        if (!pbs[event]) pbs[event] = perf;
+  var m, rowHtml, cm, cells;
+  while ((m = rowRegex.exec(html)) !== null) {
+    cells = []; rowHtml = m[1];
+    var cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    while ((cm = cellRe.exec(rowHtml)) !== null) cells.push(stripTags(cm[1]));
+    if (cells.length >= 6 && dateRe.test(cells[cells.length - 1])) {
+      var ev = cells[0], perf = cells[1], wind = cells[2] || '';
+      var pos = cells[4] || '', venue = cells[5] || '', date = cells[cells.length - 1];
+      if (ev && perf && perf !== 'Perf') {
+        results.push({ ev: ev, perf: perf, wind: wind, pos: pos, venue: venue, date: date });
+        if (!pbs[ev]) pbs[ev] = perf;
       }
     }
-  });
-
-  // Sort results by date descending (most recent first)
-  results.sort(function(a, b) {
-    return parsePo10Date(b.date) - parsePo10Date(a.date);
-  });
-
-  return { name, results: results.slice(0, 30), pbs };
+  }
+  results.sort(function(a, b) { return parsePo10Date(b.date) - parsePo10Date(a.date); });
+  return { name: name, results: results.slice(0, 30), pbs: pbs };
 }
 
 function parsePo10Date(d) {
   if (!d) return 0;
-  var parts = d.split('/');
-  if (parts.length === 3) {
-    var yr = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-    return new Date(yr + '-' + parts[1] + '-' + parts[0]).getTime();
+  var p = d.split('/');
+  if (p.length === 3) {
+    var yr = p[2].length === 2 ? '20' + p[2] : p[2];
+    return new Date(yr + '-' + p[1] + '-' + p[0]).getTime();
   }
   return 0;
 }
 
-function po10ResultAge(dateStr) {
-  var ms = Date.now() - parsePo10Date(dateStr);
-  var days = Math.floor(ms / 86400000);
+function po10ResultAge(d) {
+  var days = Math.floor((Date.now() - parsePo10Date(d)) / 86400000);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 7) return days + 'd ago';
-  if (days < 30) return Math.floor(days/7) + 'w ago';
-  if (days < 365) return Math.floor(days/30) + 'mo ago';
-  return Math.floor(days/365) + 'y ago';
+  if (days < 30) return Math.floor(days / 7) + 'w ago';
+  if (days < 365) return Math.floor(days / 30) + 'mo ago';
+  return Math.floor(days / 365) + 'y ago';
 }
 
 async function refreshPo10Feed() {
   var withPo10 = athletes.filter(function(a) { return a.po10Id && a.po10Id.trim(); });
   var statusEl = document.getElementById('po10-feed-status');
   var listEl = document.getElementById('po10-feed-list');
-
   if (!withPo10.length) {
-    listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text3)"><div style="font-size:2.5rem;margin-bottom:10px">🏅</div><div style="font-weight:600;margin-bottom:6px">No athletes linked yet</div><div style="font-size:13px">Edit an athlete profile and add their Power of 10 ID</div></div>';
+    listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text3)">No athletes linked yet. Edit an athlete and add their Power of 10 ID.</div>';
     return;
   }
-
   statusEl.style.display = 'block';
-  statusEl.innerHTML = '⏳ Fetching results for ' + withPo10.length + ' athlete(s)…';
+  statusEl.innerHTML = 'Fetching results...';
   listEl.innerHTML = '';
-
-  var allResults = [];
-  var errors = [];
-
+  var allResults = [], errors = [];
   for (var i = 0; i < withPo10.length; i++) {
     var ath = withPo10[i];
-    statusEl.innerHTML = '⏳ Fetching ' + ath.firstName + ' ' + ath.lastName + ' (' + (i+1) + '/' + withPo10.length + ')…';
+    statusEl.innerHTML = 'Fetching ' + ath.firstName + ' ' + ath.lastName + ' (' + (i + 1) + '/' + withPo10.length + ')...';
     try {
       var data = await fetchPo10Athlete(ath.po10Id.trim());
       data.results.forEach(function(r) {
-        allResults.push(Object.assign({}, r, {
-          athleteId: ath.id,
-          po10Id: ath.po10Id,
-          athleteName: ath.firstName + ' ' + ath.lastName,
-          group: ath.group,
-          ability: ath.ability
-        }));
+        allResults.push(Object.assign({}, r, { athleteId: ath.id, po10Id: ath.po10Id, athleteName: ath.firstName + ' ' + ath.lastName }));
       });
     } catch(e) {
       errors.push(ath.firstName + ' ' + ath.lastName + ' (' + e.message + ')');
     }
   }
-
-  // Sort all results by date
   allResults.sort(function(a, b) { return parsePo10Date(b.date) - parsePo10Date(a.date); });
-
-  if (errors.length) {
-    statusEl.innerHTML = '⚠️ Could not fetch: ' + errors.join(', ');
-  } else {
-    statusEl.style.display = 'none';
-  }
-
+  if (errors.length) statusEl.innerHTML = 'Could not fetch: ' + errors.join(', ');
+  else statusEl.style.display = 'none';
   if (!allResults.length) {
-    listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3)">No results found. Check the Po10 IDs are correct.</div>';
+    listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3)">No results found.</div>';
     return;
   }
-
   renderPo10Feed(allResults);
 }
 
 function renderPo10Feed(results) {
   var listEl = document.getElementById('po10-feed-list');
-  var html = '';
-
-  // Group by date for a timeline feel
   var byDate = {};
-  results.forEach(function(r) {
-    var key = r.date || 'Unknown';
-    if (!byDate[key]) byDate[key] = [];
-    byDate[key].push(r);
-  });
-
-  var dates = Object.keys(byDate).sort(function(a,b){ return parsePo10Date(b) - parsePo10Date(a); });
-
+  results.forEach(function(r) { var k = r.date || 'Unknown'; if (!byDate[k]) byDate[k] = []; byDate[k].push(r); });
+  var dates = Object.keys(byDate).sort(function(a, b) { return parsePo10Date(b) - parsePo10Date(a); });
+  var html = '';
   dates.slice(0, 20).forEach(function(date) {
-    var age = po10ResultAge(date);
-    html += '<div style="margin-bottom:8px">';
-    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:8px">';
-    html += '<span>' + date + '</span><span style="color:var(--border2)">·</span><span>' + age + '</span>';
-    html += '</div>';
-
+    html += '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px">' + date + ' &middot; ' + po10ResultAge(date) + '</div>';
     byDate[date].forEach(function(r) {
-      var isStar = po10Cache[r.po10Id] && po10Cache[r.po10Id].pbs && po10Cache[r.po10Id].pbs[r.event] === r.perf;
+      var cached = po10Cache[r.po10Id] || {};
+      var isStar = cached.pbs && cached.pbs[r.ev] === r.perf;
+      var initials = r.athleteName.split(' ').map(function(n) { return n[0] || ''; }).join('').slice(0, 2).toUpperCase();
       html += '<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:6px">';
-      // Avatar / initials
-      html += '<div style="width:36px;height:36px;border-radius:50%;background:var(--blue);color:var(--yellow);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + r.athleteName.split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase() + '</div>';
-      html += '<div style="flex:1;min-width:0">';
-      html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">';
-      html += '<span style="font-weight:600;font-size:14px">' + r.athleteName + '</span>';
-      if (isStar) html += '<span title="Personal Best" style="font-size:12px;background:var(--yellow);color:var(--blue-dark);border-radius:4px;padding:1px 5px;font-weight:700">PB</span>';
+      html += '<div style="width:36px;height:36px;border-radius:50%;background:var(--blue);color:var(--yellow);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + initials + '</div>';
+      html += '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;margin-bottom:2px">' + r.athleteName + (isStar ? ' <span style="font-size:12px;background:var(--yellow);color:var(--blue-dark);border-radius:4px;padding:1px 5px;font-weight:700">PB</span>' : '') + '</div>';
+      html += '<div style="font-size:13px;color:var(--text2)">' + r.ev + ' &nbsp;&middot;&nbsp; <strong>' + r.perf + '</strong></div>';
+      if (r.venue) html += '<div style="font-size:12px;color:var(--text3)">' + r.venue + '</div>';
       html += '</div>';
-      html += '<div style="font-size:13px;color:var(--text2)">' + r.event + ' &nbsp;·&nbsp; <strong style="color:var(--text)">' + r.perf + '</strong>';
-      if (r.wind && r.wind !== '0.0' && r.wind !== '') html += ' <span style="color:var(--text3);font-size:12px">(' + r.wind + 'm/s)</span>';
-      if (r.pos) html += ' &nbsp;·&nbsp; ' + ordinal(r.pos);
-      html += '</div>';
-      if (r.venue) html += '<div style="font-size:12px;color:var(--text3);margin-top:1px">📍 ' + r.venue + '</div>';
-      html += '</div>';
-      html += '<a href="' + po10Url(r.po10Id) + '" target="_blank" style="font-size:11px;color:var(--blue-mid);text-decoration:none;flex-shrink:0">Po10 ↗</a>';
+      html += '<a href="' + po10Url(r.po10Id) + '" target="_blank" style="font-size:11px;color:var(--blue-mid);text-decoration:none">Po10</a>';
       html += '</div>';
     });
     html += '</div>';
   });
-
   listEl.innerHTML = html;
 }
 
-function ordinal(n) {
-  var num = parseInt(n);
-  if (isNaN(num)) return n;
-  var s = ['th','st','nd','rd'];
-  var v = num % 100;
-  return num + (s[(v-20)%10] || s[v] || s[0]);
-}
-
-// Po10 section inside the performance modal
 function renderPo10AthleteSection(athId) {
-  var a = athletes.find(function(x){ return x.id === athId; });
-  if (!a || !a.po10Id) return '<div style="padding:12px;background:var(--surface2);border-radius:var(--radius);border:1.5px dashed var(--border2);text-align:center;font-size:13px;color:var(--text3)">No Power of 10 ID set — add one in Edit athlete</div>';
-
+  var a = athletes.find(function(x) { return x.id === athId; });
+  if (!a || !a.po10Id) return '<div style="padding:12px;text-align:center;font-size:13px;color:var(--text3)">No Power of 10 ID set - add one in Edit athlete</div>';
   var cached = po10Cache[a.po10Id];
   var html = '<div style="margin-top:1rem;padding-top:1rem;border-top:1.5px solid var(--border)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
-  html += '<div style="font-size:14px;font-weight:700">🏅 Power of 10</div>';
+  html += '<div style="font-size:14px;font-weight:700">Power of 10</div>';
   html += '<div style="display:flex;gap:8px;align-items:center">';
-  html += '<a href="' + po10Url(a.po10Id) + '" target="_blank" style="font-size:12px;color:var(--blue-mid);text-decoration:none">View full profile ↗</a>';
-  html += '<button class="btn" style="font-size:12px;padding:4px 10px" onclick="loadPo10ForAthlete(\'' + a.id + '\')">Load results</button>';
+  html += '<a href="' + po10Url(a.po10Id) + '" target="_blank" style="font-size:12px;color:var(--blue-mid);text-decoration:none">View profile</a>';
+  html += '<button class="btn" style="font-size:12px;padding:4px 10px" onclick="loadPo10ForAthlete(this.dataset.id)" data-id="' + athId + '">Load results</button>';
   html += '</div></div>';
-
   if (!cached) {
-    html += '<div style="font-size:13px;color:var(--text3);padding:10px 0">Click "Load results" to fetch from Power of 10</div>';
+    html += '<div style="font-size:13px;color:var(--text3);padding:10px 0">Click Load results to fetch from Power of 10</div>';
   } else {
-    // Show PBs
     var pbKeys = Object.keys(cached.pbs || {});
     if (pbKeys.length) {
-      html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Personal Bests</div>';
-      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
-      pbKeys.forEach(function(ev) {
-        html += '<div style="background:var(--blue-light);border:1.5px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:13px"><span style="color:var(--text2)">' + ev + '</span> <strong>' + cached.pbs[ev] + '</strong></div>';
-      });
+      html += '<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:6px">Personal Bests</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+      pbKeys.forEach(function(ev) { html += '<div style="background:var(--blue-light);border:1.5px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:13px">' + ev + ' <strong>' + cached.pbs[ev] + '</strong></div>'; });
       html += '</div>';
     }
-    // Show last 5 results
     if (cached.results && cached.results.length) {
-      html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px">Recent Results</div>';
-      cached.results.slice(0,5).forEach(function(r) {
-        var isStar = cached.pbs && cached.pbs[r.event] === r.perf;
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">';
-        html += '<div><span style="color:var(--text2)">' + r.event + '</span> <strong>' + r.perf + '</strong>';
-        if (isStar) html += ' <span style="font-size:11px;background:var(--yellow);color:var(--blue-dark);border-radius:3px;padding:1px 4px;font-weight:700">PB</span>';
-        html += '</div>';
-        html += '<div style="color:var(--text3)">' + r.date + '</div>';
-        html += '</div>';
+      html += '<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:6px">Recent Results</div>';
+      cached.results.slice(0, 5).forEach(function(r) {
+        var isStar = cached.pbs && cached.pbs[r.ev] === r.perf;
+        html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><div>' + r.ev + ' <strong>' + r.perf + '</strong>' + (isStar ? ' <span style="font-size:11px;background:var(--yellow);color:var(--blue-dark);border-radius:3px;padding:1px 4px;font-weight:700">PB</span>' : '') + '</div><div style="color:var(--text3)">' + r.date + '</div></div>';
       });
     }
-    var fetchAge = Math.round((Date.now() - cached.fetched) / 60000);
-    html += '<div style="font-size:11px;color:var(--text3);margin-top:8px">Fetched ' + fetchAge + ' min ago</div>';
   }
   html += '</div>';
   return html;
 }
 
 async function loadPo10ForAthlete(athId) {
-  var a = athletes.find(function(x){ return x.id === athId; });
+  var a = athletes.find(function(x) { return x.id === athId; });
   if (!a || !a.po10Id) return;
   try {
     await fetchPo10Athlete(a.po10Id.trim());
-    // Re-render perf modal if it's open
-    var perfBody = document.getElementById('perf-body');
-    if (perfBody) {
-      var po10Div = document.getElementById('po10-athlete-section');
-      if (po10Div) po10Div.innerHTML = renderPo10AthleteSection(athId);
-    }
+    var po10Div = document.getElementById('po10-athlete-section');
+    if (po10Div) po10Div.innerHTML = renderPo10AthleteSection(athId);
   } catch(e) {
     alert('Could not fetch Po10 data: ' + e.message);
   }
 }
 
 </script>
-<div id="mEntries" class="overlay"><div class="modal"><div class="modal-header"><div class="modal-title" id="mEntriesT"></div><button class="close-btn" onclick="closeMo('mEntries')">&#10005;</button></div><div id="mEntriesBody"></div><div class="modal-footer"><button class="btn" onclick="closeMo('mEntries')">Close</button></div></div></div></body>
-</html>
+<div id="mEntries"
