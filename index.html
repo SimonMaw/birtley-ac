@@ -897,62 +897,70 @@ function po10Url(id) {
 async function fetchPo10Athlete(po10Id) {
   var now = Date.now();
   if (po10Cache[po10Id] && (now - po10Cache[po10Id].fetched) < PO10_CACHE_TTL) return po10Cache[po10Id];
-  var targetUrl = 'https://www.powerof10.uk/Home/Athlete/' + po10Id;
-  var proxies = [
-    'https://proxy.cors.sh/' + targetUrl,
-    'https://corsproxy.io/?' + encodeURIComponent(targetUrl),
-    'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl)
-  ];
-  var html = null;
-  for (var i = 0; i < proxies.length; i++) {
-    try {
-      var resp = await fetch(proxies[i], { signal: AbortSignal.timeout(12000) });
-      if (!resp.ok) continue;
-      var text = await resp.text();
-      if (text && text.length > 10000 && text.includes('</html>')) { html = text; break; }
-    } catch(e) { continue; }
-  }
-  if (!html) throw new Error('Could not fetch Po10 profile');
-  var parsed = parsePo10Html(html);
-  po10Cache[po10Id] = Object.assign({ fetched: now }, parsed);
-  return po10Cache[po10Id];
+
+  return new Promise(function(resolve, reject) {
+    // Create a hidden iframe to load Po10 and let it fully render
+    var iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1024px;height:800px;visibility:hidden;';
+    iframe.sandbox = 'allow-scripts allow-same-origin';
+    document.body.appendChild(iframe);
+
+    var timeout = setTimeout(function() {
+      document.body.removeChild(iframe);
+      reject(new Error('Timed out loading Po10 profile'));
+    }, 20000);
+
+    iframe.onload = function() {
+      // Wait for JS to render the results table
+      var attempts = 0;
+      var check = setInterval(function() {
+        attempts++;
+        try {
+          var doc = iframe.contentDocument || iframe.contentWindow.document;
+          var rows = Array.from(doc.querySelectorAll('table tr')).filter(function(r) {
+            return /\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(r.innerText);
+          });
+          if (rows.length > 0 || attempts > 20) {
+            clearInterval(check);
+            clearTimeout(timeout);
+            document.body.removeChild(iframe);
+            if (rows.length === 0) { reject(new Error('No results found on page')); return; }
+            var parsed = parsePo10Dom(doc, rows);
+            po10Cache[po10Id] = Object.assign({ fetched: Date.now() }, parsed);
+            resolve(po10Cache[po10Id]);
+          }
+        } catch(e) {
+          clearInterval(check);
+          clearTimeout(timeout);
+          document.body.removeChild(iframe);
+          reject(new Error('Could not read Po10 page: ' + e.message));
+        }
+      }, 500);
+    };
+
+    iframe.src = 'https://www.powerof10.uk/Home/Athlete/' + po10Id;
+  });
 }
 
-function parsePo10Html(html) {
-  // Extract athlete name from <h1> or <title>
-  var nameMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  var name = nameMatch ? nameMatch[1].replace(/<[^>]+>/g,'').trim() : 'Athlete';
+function parsePo10Dom(doc, rows) {
+  // Get athlete name
+  var h1 = doc.querySelector('h1');
+  var name = h1 ? h1.innerText.trim() : 'Athlete';
 
   var results = [], pbs = {};
-  var dateRe = /^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/i;
-  var tagRe = /<[^>]+>/g;
-  function strip(s) { return (s||'').replace(tagRe,'').trim(); }
-
-  // Parse all <tr> rows and find ones ending with a date
-  var rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  var m, cm, cells;
-  while ((m = rowRe.exec(html)) !== null) {
-    cells = [];
-    var cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    while ((cm = cellRe.exec(m[1])) !== null) cells.push(strip(cm[1]));
-    if (cells.length < 5) continue;
-    var last = cells[cells.length - 1];
-    if (!dateRe.test(last)) continue;
-    // Structure: Event, Perf, [Wind], Pos, [Points, AGrade, Age], Venue, Meeting, Date
+  rows.forEach(function(r) {
+    var cells = Array.from(r.querySelectorAll('td')).map(function(td) { return td.innerText.trim(); });
+    if (cells.length < 5) return;
     var ev = cells[0], perf = cells[1];
-    var pos = '', venue = '', date = last;
-    // Work backwards from date
-    if (cells.length >= 7) {
-      venue = cells[cells.length - 3] || '';
-      pos = cells[3] || '';
-    }
-    if (ev && perf && ev !== 'Event' && perf !== 'Performance' && perf !== 'Perf') {
+    var pos = cells[3] || '';
+    var date = cells[cells.length - 1];
+    var venue = cells.length >= 7 ? cells[cells.length - 3] : '';
+    if (ev && perf && ev !== 'Event') {
       results.push({ ev: ev, perf: perf, pos: pos, venue: venue, date: date });
       if (!pbs[ev]) pbs[ev] = perf;
     }
-  }
+  });
 
-  // Sort by date descending
   results.sort(function(a, b) { return parsePo10Date(b.date) - parsePo10Date(a.date); });
   return { name: name, results: results.slice(0, 50), pbs: pbs };
 }
