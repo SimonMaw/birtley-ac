@@ -1112,7 +1112,7 @@ function renderPo10AthleteSection(athId) {
   html += '<div style="font-size:14px;font-weight:700">🏅 Power of 10</div>';
   html += '<div style="display:flex;gap:8px;align-items:center">';
   html += '<a href="' + po10Url(a.po10Id) + '" target="_blank" style="font-size:12px;color:var(--blue-mid);text-decoration:none">View full profile ↗</a>';
-  html += '<button class="btn" style="font-size:12px;padding:4px 10px" onclick="loadPo10ForAthlete('' + a.id + '')">Load results</button>';
+  html += '<button class="btn" style="font-size:12px;padding:4px 10px" onclick="loadPo10ForAthlete(\'' + a.id + '\')">Load results</button>';
   html += '</div></div>';
 
   if (!cached) {
