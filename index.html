@@ -897,70 +897,87 @@ function po10Url(id) {
 async function fetchPo10Athlete(po10Id) {
   var now = Date.now();
   if (po10Cache[po10Id] && (now - po10Cache[po10Id].fetched) < PO10_CACHE_TTL) return po10Cache[po10Id];
-  var targetUrl = po10Url(po10Id);
+  var targetUrl = 'https://www.powerof10.uk/Home/Athlete/' + po10Id;
   var proxies = [
+    'https://proxy.cors.sh/' + targetUrl,
     'https://corsproxy.io/?' + encodeURIComponent(targetUrl),
-    'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl),
-    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl)
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl)
   ];
   var html = null;
   for (var i = 0; i < proxies.length; i++) {
     try {
-      var resp = await fetch(proxies[i], { signal: AbortSignal.timeout(10000) });
+      var resp = await fetch(proxies[i], { signal: AbortSignal.timeout(12000) });
       if (!resp.ok) continue;
       var text = await resp.text();
-      // allorigins returns JSON with contents field
-      if (text.trim().startsWith('{')) {
-        try { text = JSON.parse(text).contents; } catch(e) {}
-      }
-      if (text && text.includes('</html>')) { html = text; break; }
+      if (text && text.length > 10000 && text.includes('</html>')) { html = text; break; }
     } catch(e) { continue; }
   }
-  if (!html) throw new Error('Could not fetch Po10 profile (all proxies failed)');
+  if (!html) throw new Error('Could not fetch Po10 profile');
   var parsed = parsePo10Html(html);
   po10Cache[po10Id] = Object.assign({ fetched: now }, parsed);
   return po10Cache[po10Id];
 }
 
 function parsePo10Html(html) {
-  var nameMatch = html.match(/<h2[^>]*>([^<]+)<\/h2>/i);
-  var name = nameMatch ? nameMatch[1].trim() : 'Athlete';
+  // Extract athlete name from <h1> or <title>
+  var nameMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  var name = nameMatch ? nameMatch[1].replace(/<[^>]+>/g,'').trim() : 'Athlete';
+
   var results = [], pbs = {};
-  var rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  var tagRegex = /<[^>]+>/g;
-  function stripTags(s) { return s.replace(tagRegex, '').trim(); }
-  var dateRe = /^\d{2}\/\d{2}\/\d{2,4}$/;
-  var m, rowHtml, cm, cells;
-  while ((m = rowRegex.exec(html)) !== null) {
-    cells = []; rowHtml = m[1];
+  var dateRe = /^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/i;
+  var tagRe = /<[^>]+>/g;
+  function strip(s) { return (s||'').replace(tagRe,'').trim(); }
+
+  // Parse all <tr> rows and find ones ending with a date
+  var rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  var m, cm, cells;
+  while ((m = rowRe.exec(html)) !== null) {
+    cells = [];
     var cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    while ((cm = cellRe.exec(rowHtml)) !== null) cells.push(stripTags(cm[1]));
-    if (cells.length >= 6 && dateRe.test(cells[cells.length - 1])) {
-      var ev = cells[0], perf = cells[1], wind = cells[2] || '';
-      var pos = cells[4] || '', venue = cells[5] || '', date = cells[cells.length - 1];
-      if (ev && perf && perf !== 'Perf') {
-        results.push({ ev: ev, perf: perf, wind: wind, pos: pos, venue: venue, date: date });
-        if (!pbs[ev]) pbs[ev] = perf;
-      }
+    while ((cm = cellRe.exec(m[1])) !== null) cells.push(strip(cm[1]));
+    if (cells.length < 5) continue;
+    var last = cells[cells.length - 1];
+    if (!dateRe.test(last)) continue;
+    // Structure: Event, Perf, [Wind], Pos, [Points, AGrade, Age], Venue, Meeting, Date
+    var ev = cells[0], perf = cells[1];
+    var pos = '', venue = '', date = last;
+    // Work backwards from date
+    if (cells.length >= 7) {
+      venue = cells[cells.length - 3] || '';
+      pos = cells[3] || '';
+    }
+    if (ev && perf && ev !== 'Event' && perf !== 'Performance' && perf !== 'Perf') {
+      results.push({ ev: ev, perf: perf, pos: pos, venue: venue, date: date });
+      if (!pbs[ev]) pbs[ev] = perf;
     }
   }
+
+  // Sort by date descending
   results.sort(function(a, b) { return parsePo10Date(b.date) - parsePo10Date(a.date); });
-  return { name: name, results: results.slice(0, 30), pbs: pbs };
+  return { name: name, results: results.slice(0, 50), pbs: pbs };
 }
 
 function parsePo10Date(d) {
   if (!d) return 0;
+  // New format: "12 Apr" or "12 Apr 2026"
+  var months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  var m = d.match(/^(\d{1,2})\s+([A-Za-z]{3})(?:\s+(\d{4}))?$/);
+  if (m) {
+    var yr = m[3] ? parseInt(m[3]) : new Date().getFullYear();
+    return new Date(yr, months[m[2]] || 0, parseInt(m[1])).getTime();
+  }
+  // Old format: "12/04/26"
   var p = d.split('/');
   if (p.length === 3) {
-    var yr = p[2].length === 2 ? '20' + p[2] : p[2];
-    return new Date(yr + '-' + p[1] + '-' + p[0]).getTime();
+    var yr2 = p[2].length === 2 ? '20' + p[2] : p[2];
+    return new Date(yr2 + '-' + p[1] + '-' + p[0]).getTime();
   }
   return 0;
 }
 
 function po10ResultAge(d) {
   var days = Math.floor((Date.now() - parsePo10Date(d)) / 86400000);
-  if (days === 0) return 'Today';
+  if (days <= 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 7) return days + 'd ago';
   if (days < 30) return Math.floor(days / 7) + 'w ago';
